@@ -198,6 +198,44 @@ Booking ────────────────────────
   │       └────────▶ Notification  email de confirmación / cancelación
 ```
 
+### 4.1 Anatomía de `POST /api/bookings`, milisegundo a milisegundo
+
+El flujo tiene **dos fases** separadas por el commit, y entender esa frontera es entender todo el diseño:
+
+**Fase síncrona — dentro de la petición HTTP** (`BookingController.create` → `BookingService.createBooking`, una única transacción):
+
+1. `BookingService` consulta `EventService.getEventById(...)` → llamada síncrona `booking → events`: necesita el precio **antes** de poder calcular el total y persistir.
+2. `BookingRepository.save(booking)` — la reserva se persiste con estado `CONFIRMED`.
+3. `eventPublisher.publishEvent(BookingConfirmedEvent)` — aquí ocurre la magia del Event Publication Registry: en esa **misma transacción** se insertan **dos filas en `event_publication`** (una por cada listener registrado: `seats` y `notification`), con el evento serializado a JSON.
+4. **COMMIT** — Spring devuelve `HTTP 201` al cliente. En la demo real: **91 ms**. El cliente no sabe que Seats y Notification existen.
+
+**Fase asíncrona — después del commit** (hilos independientes, cada una con su transacción `REQUIRES_NEW`):
+
+5. `seats.BookingEventHandler.onBookingConfirmed` → `SeatService.reserveSeats(eventId, quantity)`: inicializa el aforo si es la primera vez (leyendo la capacidad del evento vía `events`) y aumenta las plazas reservadas.
+6. `notification.BookingNotificationHandler.onBookingConfirmed` → compone el email con el detalle y lo emite por consola.
+7. Cada handler, al terminar **sin excepción**, marca **su** publicación como completada (`completion_date`, con `completion-mode=UPDATE` queda en la tabla para auditoría).
+
+El orden 5-6 no está garantizado (corren en paralelo): eso es exactamente lo que muestra el test de integración, que usa Awaitility en lugar de suponer orden.
+
+### 4.2 Por qué cada flecha es como es
+
+| Flecha | Tipo | Razón de diseño |
+|---|---|---|
+| `booking → events` | Síncrona | Booking necesita el precio **ahora** para persistir el total correcto. Sin precio no hay reserva. |
+| `seats → events` | Síncrona (solo lectura) | Seats necesita la capacidad total para inicializar su inventario perezosamente. |
+| `booking → seats` | Asíncrona (evento) | Reservar aforo es una consecuencia del negocio, no un prerrequisito. Si el aforo se agota, la publicación queda pendiente — el pedido del cliente **no falla** por ello. |
+| `booking → notification` | Asíncrona (evento) | El email no puede romper la reserva ni retrasar la respuesta. |
+
+La regla de oro: **síncrono cuando necesitas el resultado para continuar; asíncrono cuando el negocio puede seguir sin esperar**. La verificación de arquitectura (sección 6) castiga cruzar esa línea: un ciclo tipo `booking ↔ seats` rompe la build.
+
+### 4.3 El camino triste (que es el interesante)
+
+- **Falla Seats** (p. ej. `InsufficientSeatsException` porque el evento está agotado): su publicación queda **incompleta** en `event_publication` (`completion_date IS NULL`). Notification, que escucha el mismo evento, sí procesa el suyo: el fallo de un consumidor **no bloquea a los demás**. Al reiniciar la app, `republish-outstanding-events-on-restart=true` re-entrega el evento; si mientras tanto se liberó aforo, la reserva se completa.
+- **Cae la app entre el commit y los listeners**: las filas de `event_publication` ya están commitadas junto a la reserva — el evento **no se pierde**, se procesa al arrancar. Con `ApplicationEventPublisher` a secas, la reserva existiría sin aforo ni email, silenciosamente.
+- **El cliente cancela**: `cancelBooking` persiste la cancelación y publica `BookingCancelledEvent` → Seats libera plazas, Notification envía el email de cancelación. Compensación por eventos — el patrón saga en miniatura.
+
+En los tres casos, la tabla `event_publication` es la fuente de verdad: cualquier cosa que esté a medias se ve ahí (`completion_date IS NULL`), y cualquier cosa terminada queda registrada.
+
 ## 5. Compruébalo tú mismo
 
 ```bash
