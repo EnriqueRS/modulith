@@ -24,6 +24,7 @@
   - **Cancelar**: `POST /api/bookings/1/cancel?reason=Cliente no puede asistir`
 - [ ] Suite verde por la mañana: `./mvnw test` → 22/22
 - [ ] **Demo de arquitectura preparada**: en `BookingService` las 2 líneas de la violación (`SeatService`) deben estar **comentadas** y verificadas con `./mvnw test` en verde — en directo solo hay que **descomentarlas** (ver paso 💥 de la demo)
+- [ ] Extras preparados: Swagger UI con los **grupos por módulo** visibles (`01-events`, `02-booking`, `03-seats`) y `target/spring-modulith-docs/` regenerado con un visor PlantUML a mano (plugin del IDE o plantuml.com)
 - [ ] (Copia de seguridad del deck y del repo por si hay que volver atrás)
 
 ---
@@ -241,6 +242,52 @@ org.springframework.modulith.core.Violations:
 
 ⚠️ **No olvidar**: dejar las líneas **comentadas** al acabar (estado commitado). Si la sala aprieta, este bonus se puede saltar sin afectar al resto — por eso va al final del bloque.
 
+### 🗺️ Extra 1 — Los endpoints siguen la estructura de carpetas *(1-2 min)*
+
+**Objetivo**: demostrar que la superficie REST hereda la modularidad — no hay un "mega controller".
+
+**Acción** (dos pantallas, 30 s cada una):
+
+1. **Árbol del proyecto en el IDE** — señalar el espejo carpeta↔endpoint:
+
+```
+com/example/tickets/
+├── events/EventController.java        →  /api/events
+├── booking/BookingController.java     →  /api/bookings
+└── seats/SeatController.java          →  /api/seats/{eventId}
+```
+
+2. **Swagger UI** — abrir el desplegable de grupos: **`01-events`**, **`02-booking`**, **`03-seats`** (configurados por paquete en `OpenApiGroupsConfig`).
+
+**Mensajes a decir**:
+
+- "Cada módulo posee **sus** endpoints: la URL refleja el paquete. El API no es un vertedero: es un espejo de la estructura de carpetas."
+- Abrir el grupo `02-booking`: "solo sus 4 endpoints — nada de Events ni de Seats se cuela aquí."
+- Remate: "¿y Notification? **No tiene endpoints**: es consumidor puro de eventos. Su 'API' son los listeners, y no aparece en Swagger porque no expone REST."
+
+### 📄 Extra 2 — Documentación viva: PlantUML y C4 desde el código *(2 min)*
+
+**Objetivo**: demostrar que la documentación de arquitectura **se genera** y no se mantiene a mano.
+
+**Acción**:
+
+1. Ejecutar (si no se acaba de hacer en el bonus 💥):
+
+```bash
+./mvnw test -Dtest=ModularityTests
+```
+
+2. Abrir **`target/spring-modulith-docs/`** y enseñar:
+   - **`components.puml`** — el diagrama global de componentes: los 4 módulos y sus dependencias, **idéntico a la slide 8**.
+   - **`module-booking.puml`**, `module-events.puml`, `module-seats.puml`, `module-notification.puml` — un diagrama por módulo, con sus API expuestas y los eventos que publica/escucha.
+   - **`all-docs.adoc`** — el documento C4 agregado (modelado de componentes y relaciones).
+
+**Mensajes a decir**:
+
+- "Esto **no está dibujado a mano**: se genera desde el código en cada ejecución de tests. El diagrama de arquitectura no puede quedar obsoleto porque no lo edita nadie."
+- Conectar con el bonus 💥: "y si violas las reglas, ni siquiera llega a generarse — la build falla **antes**."
+- Visualizarlo: plugin de PlantUML de IntelliJ/VS Code, o pegando el `.puml` en el servidor de plantuml.com.
+
 ---
 
 ## Bloque 5 · Cierre — *5 min*
@@ -286,4 +333,4 @@ Mensaje final en 3 frases (la síntesis):
 
 ---
 
-**Distribución de tiempos**: Apertura 2' · Por qué 8' · Arquitectura 5' · Demo (con bonus de arquitectura) 12' · Cierre 3'.
+**Distribución de tiempos**: Apertura 2' · Por qué 8' · Arquitectura 5' · Demo (con bonus 💥 y extras 🗺️📄 si sobra tiempo) 12' · Cierre 3'.

@@ -49,7 +49,7 @@ Booking ────────────────────────
 ```
 
 - App: <http://localhost:8080>
-- Swagger UI: <http://localhost:8080/swagger-ui.html>
+- Swagger UI: <http://localhost:8080/swagger-ui.html> (agrupada por módulo: `01-events`, `02-booking`, `03-seats` — la API refleja la estructura de carpetas)
 - Arquitectura de módulos: <http://localhost:8080/actuator/modulith>
 - Métricas de eventos: <http://localhost:8080/actuator/metrics/modulith.events.processed>
 - Consola H2: <http://localhost:8080/h2-console> (JDBC URL `jdbc:h2:mem:ticketsdb`, usuario `sa`; la tabla `event_publication` guarda el registro de eventos)

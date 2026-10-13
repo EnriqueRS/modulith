@@ -32,7 +32,8 @@ public class BookingService {
 
     private final BookingRepository bookingRepository;
     private final EventService eventService;
-//    private final SeatService seatService; // ⚠️ VIOLACIÓN: ciclo booking ↔ seats
+
+    //     private final SeatService seatService; // ⚠️ VIOLACIÓN: ciclo booking ↔ seats
     private final ApplicationEventPublisher eventPublisher;
 
     /**
@@ -42,7 +43,8 @@ public class BookingService {
         log.info("Creando reserva para {} en el evento {}", request.customerEmail(), request.eventId());
 
         Event event = eventService.getEventById(request.eventId());
-//        seatService.getAvailability(event.getId()); // ⚠️ trabajo de Seats hecho desde Booking
+
+//          seatService.getAvailability(event.getId()); // ⚠️ trabajo de Seats hecho desde Booking
 
         Booking booking = Booking.builder()
                 .customerEmail(request.customerEmail())
