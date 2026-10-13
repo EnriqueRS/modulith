@@ -23,7 +23,8 @@
   - **Reserva**: `{"eventId":1,"customerEmail":"demo@example.com","quantity":2}`
   - **Cancelar**: `POST /api/bookings/1/cancel?reason=Cliente no puede asistir`
 - [ ] Suite verde por la mañana: `./mvnw test` → 22/22
-- [ ] (Si piensas romper la modularidad en directo) tener el diff de la demo preparado para pegar — ver `SPRING_MODULITH.md` §6
+- [ ] **Demo de arquitectura preparada**: en `BookingService` las 2 líneas de la violación (`SeatService`) deben estar **comentadas** y verificadas con `./mvnw test` en verde — en directo solo hay que **descomentarlas** (ver paso 💥 de la demo)
+- [ ] (Copia de seguridad del deck y del repo por si hay que volver atrás)
 
 ---
 
@@ -179,7 +180,7 @@ Los 4 pasos, con su narración:
 
 - "`BookingCancelledEvent` libera el aforo y avisa al cliente. **Saga**: cada evento tiene su contrapartida."
 - 💡 Opcional si va con tiempo (el golpe de efecto): **agotar el aforo a propósito** — reservar más de 50 y ver en H2 la publicación con `completion_date NULL` → "queda **pendiente de reintento**; si libero aforo y reinicio, se procesa. Con ApplicationEvent a secas, este evento se habría perdido."
-- 💡 Opcional (demo de arquitectura, `SPRING_MODULITH.md` §6): inyectar `SeatService` en `BookingService` y que la build escupa el `Cycle detected` con la línea exacta. ⚠️ Solo si dominas los tiempos.
+- 💡 Si vas justo de tiempo, este paso <4> puede quedar en "liberar aforo" sin entrar en reintentos — el reintento queda cubierto por el paso <3> (tabla H2).
 
 ⚠️ **No olvidar**: los JSON van **copiados** — escribir JSON en directo es tiempo muerto.
 
@@ -193,6 +194,52 @@ Usar la slide como **mapa de lo que acaba de pasar** en la terminal:
 - "Y por último el `HTTP 201 Created` en 91 ms. **El cliente no esperó ni al aforo ni al email. Esa asimetría temporal es exactamente el desacoplamiento.**"
 
 ⚠️ **No olvidar**: cerrar el círculo con el Event Publication Registry — "si cualquier listener falla, no se pierde nada: queda registrado y se reintenta".
+
+### 💥 Bonus de la demo — Romper la arquitectura en directo *(2 min, el golpe de efecto)*
+
+**Objetivo**: que la audiencia VEA que la arquitectura se ejecuta — no es un diagrama, es la build.
+
+**Narración**: "Hemos dicho que `booking` se comunica con `seats` por eventos. ¿Qué pasaría si alguien, con la mejor intención, decidiera llamar directamente? *Comento dos líneas y listo*…"
+
+**Acción** (en `src/main/java/com/example/tickets/booking/BookingService.java`):
+
+1. **Descomentar** las 2 líneas preparadas:
+
+```java
+private final SeatService seatService; // ⚠️ VIOLACIÓN: ciclo booking ↔ seats
+...
+seatService.getAvailability(event.getId()); // ⚠️ trabajo de Seats hecho desde Booking
+```
+
+   *(el import de `SeatService` debe quedar también descomentado)*
+
+2. Ejecutar:
+
+```bash
+./mvnw test -Dtest=ModularityTests
+```
+
+3. **Señalar en pantalla** el fallo (aparece en ~2 segundos):
+
+```text
+org.springframework.modulith.core.Violations:
+- Cycle detected: Slice booking -> Slice seats -> Slice booking
+  Method <...BookingService.createBooking(...)> calls method
+  <...seats.SeatService.getAvailability(java.lang.Long)> in (BookingService.java:45)
+```
+
+**Mensajes a decir mientras se lee el error**:
+
+- "No es un warning: **la build falla**. Este descuido no llega nunca a producción."
+- "Fijaos en la precisión: te dice el **ciclo completo** — booking → seats → booking — y la **clase, el método y la línea exacta** de la violación."
+- "Y no es solo este test: cualquier `@ApplicationModuleTest` ejecuta la misma verificación al arrancar."
+
+**Reversión** (cerrar el círculo):
+
+4. **Volver a comentar** las 2 líneas y relanzar `./mvnw test` → **22/22 en verde**.
+5. Frase de cierre: *"La red de seguridad está de vuelta. La arquitectura se mantiene sola en cada build."*
+
+⚠️ **No olvidar**: dejar las líneas **comentadas** al acabar (estado commitado). Si la sala aprieta, este bonus se puede saltar sin afectar al resto — por eso va al final del bloque.
 
 ---
 
@@ -221,7 +268,7 @@ Mensaje final en 3 frases (la síntesis):
 6. ⭐ Fallo de un consumidor → publicación **incompleta** → **reintento** (no pérdida).
 7. ⭐ La regla síncrono/asíncrono: "resultado necesario ahora" vs. "el negocio sigue sin esperar" (slide 9, bloque <3>).
 8. ⭐ La saga en miniatura: confirmar ↔ cancelar como evento y contrapartida (slide 9, bloque <4>).
-9. ⭐ La arquitectura se **verifica en cada build** (y en cada test de módulo) — demo del `Cycle detected` si hay tiempo.
+9. ⭐ La arquitectura se **verifica en cada build** (y en cada test de módulo) — demo 💥 del `Cycle detected` en directo: descomentar, fallar, comentar, verde.
 10. ⭐ Documentación viva: PlantUML/C4 generados desde el código — "el diagrama no puede mentir".
 
 ---
@@ -239,4 +286,4 @@ Mensaje final en 3 frases (la síntesis):
 
 ---
 
-**Distribución de tiempos**: Apertura 2' · Por qué 8' · Arquitectura 5' · Demo 10' · Cierre+Q&A 5'.
+**Distribución de tiempos**: Apertura 2' · Por qué 8' · Arquitectura 5' · Demo (con bonus de arquitectura) 12' · Cierre 3'.
