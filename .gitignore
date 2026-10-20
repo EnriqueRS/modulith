@@ -11,3 +11,6 @@ target/
 # Logs y temporales
 *.log
 .DS_Store
+
+# BD H2 en fichero (perfil persistente)
+/data/

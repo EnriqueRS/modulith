@@ -364,6 +364,48 @@ curl -X POST http://localhost:8080/api/bookings -H "Content-Type: application/js
 # verás la publicación con completion_date NULL, pendiente de reintento
 ```
 
+### 5.3 La demo completa del reintento: fallo → liberar aforo → reinicio
+
+El reintento de eventos pendientes ocurre **al arrancar la app** (`republish-outstanding-events-on-restart=true`). Para que las publicaciones incompletas sobrevivan a ese reinicio hace falta persistencia: arranca con el **perfil `persistente`** (H2 en fichero, `application-persistente.properties`); con la BD en memoria por defecto, un reinicio borraría todo.
+
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.profiles=persistente
+```
+
+El recorrido completo (verificado):
+
+```bash
+# 1. Evento con aforo 50
+curl -X POST http://localhost:8080/api/events -H "Content-Type: application/json" \
+  -d '{"name":"Demo Reintento","venue":"Sala X","eventDate":"2026-12-01T20:00:00Z","price":10.00,"totalCapacity":50}'
+
+# 2. Reserva A: las 50 entradas -> aforo lleno (reservedSeats: 50, available: 0)
+curl -X POST http://localhost:8080/api/bookings -H "Content-Type: application/json" \
+  -d '{"eventId":1,"customerEmail":"a@example.com","quantity":50}'
+
+# 3. Reserva B: 10 entradas -> devuelve CONFIRMED al cliente, pero el listener
+#    de Seats falla al procesarla (aforo agotado):
+#    InsufficientSeatsException: Aforo insuficiente para el evento 1:
+#    solicitadas 10, disponibles 0
+#    -> su publicación queda INCOMPLETA en event_publication (completion_date NULL).
+#    La de Notification SÍ se completa: el fallo de un consumidor no arrastra a los demás.
+curl -X POST http://localhost:8080/api/bookings -H "Content-Type: application/json" \
+  -d '{"eventId":1,"customerEmail":"b@example.com","quantity":10}'
+
+# 4. Liberar aforo: cancelar la reserva A (Seats libera las 50 plazas)
+curl -X POST "http://localhost:8080/api/bookings/1/cancel?reason=Liberar%20aforo"
+
+# 5. Reintentar: parar la app (Ctrl+C) y arrancar de nuevo con el mismo perfil.
+#    Al arrancar, el registro re-entrega la publicación incompleta y, ahora que
+#    hay aforo, el listener de Seats la completa. En los logs del arranque:
+#    🎟️ [Seats] BookingConfirmed para reserva 2: reservando 10 plazas del evento 1
+#    ✅ [Seats] Aforo reservado para la reserva 2
+curl http://localhost:8080/api/seats/1
+#    {"totalSeats":50, "reservedSeats":10, "availableSeats":40}
+```
+
+La reserva 2 ya estaba `CONFIRMED` en base de datos desde el paso 3; su aforo se materializó **después del reinicio**. Eso es consistencia eventual con entrega garantizada: el evento no se perdió, esperó en `event_publication` a que su condición se cumpliera.
+
 ## 6. Prueba de fuego: viola una frontera y mira cómo la build te lo impide
 
 La demostración cabe en **un solo fichero**. El escenario: alguien de `booking` quiere comprobar el aforo directamente y llama a `SeatService`. Parece razonable... pero crea una dependencia **síncrona** `booking → seats` cuando `seats` ya consume los eventos de `booking`: un **ciclo** entre módulos.
