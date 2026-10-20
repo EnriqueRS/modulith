@@ -242,6 +242,42 @@ org.springframework.modulith.core.Violations:
 
 ⚠️ **No olvidar**: dejar las líneas **comentadas** al acabar (estado commitado). Si la sala aprieta, este bonus se puede saltar sin afectar al resto — por eso va al final del bloque.
 
+### 🗑️ Bonus — El módulo borrable *(2 min, la prueba del desacoplamiento)*
+
+**Objetivo**: demostrar en directo la frase estrella de la slide 8: *"podríamos borrar el módulo notification y ningún otro cambiaría ni una línea"*.
+
+**Narración**: "¿Recordáis que dije que Notification podría desaparecer? No lo vamos a borrar, solo lo desenchufamos: **un comentario de una línea**."
+
+**Acción** (en `src/main/java/com/example/tickets/notification/BookingNotificationHandler.java`):
+
+```java
+// @Component   // ⚠️ DEMO: módulo notification desactivado
+```
+
+(sin tocar nada más — ni imports, ni config)
+
+**Reiniciar la app** y repetir una reserva:
+
+1. Crear una reserva en Swagger o con curl.
+2. **Señalar en los logs**:
+
+```text
+🎟️ [Seats] BookingConfirmed para reserva 1: reservando 2 plazas del evento 1
+✅ [Seats] Aforo reservado para la reserva 1
+```
+
+...y **ni una mención de [Notification]**: cero errores, cero stacktraces, el aforo reservado (`reservedSeats: 2`), el cliente con su respuesta.
+
+**Mensajes a decir**:
+
+- "El módulo de emails ha desaparecido y **el negocio sigue**. Ni Booking ni Seats saben que falta: solo conocen un evento que **nadie** escucha ahora... y eso tampoco rompe nada."
+- "Fijaos en el registro: para el mismo evento ya solo se crea la publicación de Seats. Los listeners se descubren en runtime, no están cableados a mano."
+- Remate: "Esto es lo que compra la comunicación por eventos: **sumar o quitar consumidores es una decisión de despliegue, no un proyecto de refactorización**."
+
+**Reversión**: quitar el comentario de `@Component`, reiniciar → los emails vuelven. Suite completa en verde (22/22).
+
+⚠️ **No olvidar**: restaurar el `@Component` al acabar (estado commitado). Este bonus y el 💥 se complementan: el 💥 muestra que la build **prohíbe** el acoplamiento indebido; este 🗑️ muestra la **recompensa** del desacoplamiento correcto.
+
 ### 🗺️ Extra 1 — Los endpoints siguen la estructura de carpetas *(1-2 min)*
 
 **Objetivo**: demostrar que la superficie REST hereda la modularidad — no hay un "mega controller".
