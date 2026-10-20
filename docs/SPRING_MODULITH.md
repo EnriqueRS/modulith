@@ -127,13 +127,78 @@ Además, con `spring-modulith-events-api` (ya en el classpath vía `events-jpa`)
 
 Con `spring-modulith-actuator` + `spring-modulith-starter-insight`:
 
-- **`GET /actuator/modulith`**: el modelo de módulos con sus dependencias y su tipo (`ENTITY`, `USES_COMPONENT`, `EVENT_LISTENER`) — la arquitectura que `verify()` protege, consultable en runtime.
+- **`GET /actuator/modulith`**: el modelo de módulos con sus dependencias y su tipo (`ENTITY`, `USES_COMPONENT`, `EVENT_LISTENER`) — la arquitectura que `verify()` protege, consultable en runtime. El significado del JSON, campo a campo, en la [sección 3.6.1](#361-el-json-de-actuatormodulith-campo-a-campo).
 - **Métricas Micrometer**: `modulith.events.processed` (eventos procesados, con tags `event_type` y `module_name`) y un contador por tipo de evento (`BookingConfirmedEvent`, ...), consultables en `/actuator/metrics`. También `module.requests` instrumenta las invocaciones entre módulos.
 - **Trazas**: el starter insight instrumenta las invocaciones entre módulos para Micrometer Tracing (Zipkin/OTLP añadiendo el bridge correspondiente).
 
 > Nota de versiones: en Modulith 1.3 existía el endpoint `/actuator/eventpublications`; en 1.4+ fue eliminado y la gestión del registro pasó a las APIs `IncompleteEventPublications`/`CompletedEventPublications` y a la propia tabla `event_publication` (visible en la consola H2). Los nombres de métricas también cambiaron entre versiones.
 
 En una demo se puede provocar un fallo (agotar el aforo), ver la publicación incompleta en la tabla `event_publication` desde la consola H2, liberar aforo y reiniciar para ver el reintento: la entrega fiable de eventos **se ve**, no se cuenta.
+
+#### 3.6.1 El JSON de `/actuator/modulith`, campo a campo
+
+La respuesta real del proyecto (formateada; un objeto por módulo):
+
+```json
+{
+  "events": {
+    "displayName": "Events",
+    "basePackage": "com.example.tickets.events",
+    "nested": [],
+    "type": "closed",
+    "shared": false,
+    "dependencies": []
+  },
+  "booking": {
+    "displayName": "Booking",
+    "basePackage": "com.example.tickets.booking",
+    "nested": [],
+    "type": "closed",
+    "shared": false,
+    "dependencies": [
+      { "types": ["ENTITY", "USES_COMPONENT"], "target": "events" }
+    ]
+  },
+  "notification": {
+    "displayName": "Notification",
+    "basePackage": "com.example.tickets.notification",
+    "nested": [],
+    "type": "closed",
+    "shared": false,
+    "dependencies": [
+      { "types": ["EVENT_LISTENER"], "target": "booking" }
+    ]
+  },
+  "seats": {
+    "displayName": "Seats",
+    "basePackage": "com.example.tickets.seats",
+    "nested": [],
+    "type": "closed",
+    "shared": false,
+    "dependencies": [
+      { "types": ["ENTITY", "USES_COMPONENT"], "target": "events" },
+      { "types": ["EVENT_LISTENER"], "target": "booking" }
+    ]
+  }
+}
+```
+
+Significado de cada campo:
+
+| Campo | Significado |
+|---|---|
+| `"<nombreMódulo>"` (clave del objeto) | Nombre técnico del módulo: es el valor que usan los `target` de las dependencias para referirse a él. |
+| `displayName` | Nombre legible del módulo (`Events`, `Booking`...). |
+| `basePackage` | Paquete raíz del módulo: sus clases son la API pública; los subpaquetes serían internos. |
+| `parent` | (Solo aparece si existe) nombre del módulo padre cuando hay módulos anidados. No está en este proyecto: ningún módulo anida a otro. |
+| `nested` | Lista de módulos anidados dentro de este (vacía aquí). |
+| `type` | Política de exposición. `closed` (nuestro caso): solo se expone el paquete base y las interfaces con nombre. `open` (`@ApplicationModule(type = OPEN)`) expondría también los subpaquetes. |
+| `shared` | `true` si el módulo está registrado como **módulo compartido** (accesible por cualquier otro sin declararlo explícitamente como dependencia permitida). Aquí todos son `false`. |
+| `dependencies[]` | Todas las dependencias **salientes** del módulo, agrupadas por módulo destino. No hay flechas entrantes: si `booking` depende de `events`, la entrada aparece en `booking`, no en `events`. |
+| `dependencies[].target` | Módulo destino de la dependencia. |
+| `dependencies[].types[]` | Tipo de cada dependencia: `USES_COMPONENT` (inyección de un bean del otro módulo, p. ej. `EventService`), `ENTITY` (referencia a una entidad del otro módulo, p. ej. `Event`), `EVENT_LISTENER` (escucha eventos publicados por el módulo destino) o `DEFAULT` (dependencia de tipo simple que no encaja en las anteriores). |
+
+Leyendo el JSON se recupera la arquitectura completa sin abrir el código: `events` es el módulo base sin dependencias; `booking` lo usa de forma síncrona (`ENTITY` + `USES_COMPONENT`); `seats`, además de `events`, escucha los eventos de `booking` (`EVENT_LISTENER`); y `notification` es puro escuchador. Nótese que las dependencias por eventos apuntan **del consumidor al publicador**: por eso, si `booking` llamara síncronamente a `seats`, aquí se vería como una dependencia adicional `USES_COMPONENT` de `booking` hacia `seats`, cerrando el círculo que `verify()` prohíbe (sección 6).
 
 ### 3.7 Tests de módulo aislados
 
@@ -237,6 +302,32 @@ La regla de oro: **síncrono cuando necesitas el resultado para continuar; asín
 En los tres casos, la tabla `event_publication` es la fuente de verdad: cualquier cosa que esté a medias se ve ahí (`completion_date IS NULL`), y cualquier cosa terminada queda registrada.
 
 ## 5. Compruébalo tú mismo
+
+### 5.1 Consulta la API con OpenAPI/Swagger
+
+Arrancada la app, la API se consulta desde Swagger UI: **`http://localhost:8080/swagger-ui.html`**.
+
+El desplegable superior agrupa los endpoints **por módulo** (configurado en `OpenApiGroupsConfig` con un `GroupedOpenApi` por paquete, con `pathsToMatch`): la documentación REST es un espejo de la estructura de carpetas.
+
+| Grupo | Endpoints |
+|---|---|
+| `01-events` | `POST /api/events`, `GET /api/events`, `GET /api/events/{id}` |
+| `02-booking` | `POST /api/bookings`, `GET /api/bookings`, `GET /api/bookings/{id}`, `POST /api/bookings/{id}/cancel` |
+| `03-seats` | `GET /api/seats/{eventId}` |
+
+Fíjate en que **`notification` no tiene grupo con endpoints**: es consumidor puro de eventos y no expone REST — su "API" son los listeners.
+
+Para abrir y probar desde el navegador: botón **Try it out** → rellena el cuerpo → **Execute**. El recorrido completo de la demo (crear evento → crear reserva → cancelar) se puede hacer íntegramente desde Swagger, sin escribir curl.
+
+Si necesitas el contrato OpenAPI crudo (para importar en Postman o generar un cliente):
+
+```
+GET /v3/api-docs              # OpenAPI JSON completo
+GET /v3/api-docs.yaml         # versión YAML
+GET /v3/api-docs/02-booking   # solo el grupo de un módulo
+```
+
+### 5.2 Con curl y los comandos de siempre
 
 ```bash
 # Suite completa (22 tests): verificación arquitectónica incluida
