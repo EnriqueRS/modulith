@@ -1,6 +1,6 @@
 # 🎤 Guion — Webinar "Introducción a Spring Modulith"
 
-**Duración objetivo: 30 min** (+ Q&A) · **Proyecto**: `event-tickets-modulith` · **Deck**: 13 diapositivas
+**Duración objetivo: 30-35 min** (+ Q&A) · **Proyecto**: `event-tickets-modulith` · **Deck**: 13 diapositivas
 
 > Guion de apoyo para la presentación. Cada bloque indica objetivo, puntos a comentar y transición. La sección final recoge los puntos que no se pueden olvidar y las preguntas probables.
 
@@ -56,7 +56,7 @@
 
 ---
 
-## Bloque 2 · ¿Por qué modularidad? — *8 min*
+## Bloque 2 · ¿Por qué modularidad? — *9 min*
 
 ### 🎞️ Diapositiva 3 — Divider <1>
 
@@ -110,15 +110,30 @@ Los 4 pilares (derecha), con una frase cada uno:
 
 ➡️ *Transición*: "Vamos a la arquitectura del ejemplo."
 
+### 🎞️ Diapositiva 7 — Spring Modulith, de cerca
+
+**Objetivo**: dar contexto y solidez al proyecto antes del ejemplo (¿de dónde sale, qué edad tiene, quién lo lleva?).
+
+Los 4 datos (derecha), con su frase:
+
+- **<1> AGOSTO 2023 · 1.0** — "Primera versión estable, sobre Spring Boot 3. El repositorio público llevaba vivo desde julio de 2022."
+- **<2> CADENCIA SEMESTRAL** — "Una línea por generación de Boot: 1.4.x para Boot 3.5, 2.x para Boot 4. Siete generaciones en tres años." ⚠️ **Conectar**: "este proyecto usa la 1.4 — la misma que ves en el pom."
+- **<3> OPEN SOURCE** — "Apache 2.0 en spring-projects/spring-modulith, liderado por Oliver Drotbohm (equipo de Spring). Más de 1.200 estrellas en GitHub."
+- **<4> SOBRE ARCHUNIT** — "Las reglas que fallan la build usan ArchUnit. También externalización a Kafka/RabbitMQ y observabilidad Micrometer."
+
+⚠️ **No olvidar**: es un proyecto joven pero no un juguete — avalado y mantenido por el equipo de Spring.
+
+➡️ *Transición*: "Vamos a la arquitectura del ejemplo."
+
 ---
 
 ## Bloque 3 · Arquitectura del ejemplo — *5 min*
 
-### 🎞️ Diapositiva 7 — Divider <2>
+### 🎞️ Diapositiva 8 — Divider <2>
 
 "Arquitectura del ejemplo: un sistema de reserva de entradas para eventos. Pequeño a propósito: comunicación real entre módulos, sin ruido."
 
-### 🎞️ Diapositiva 8 — Los 4 módulos del proyecto
+### 🎞️ Diapositiva 9 — Los 4 módulos del proyecto
 
 **Objetivo**: presentar el mapa mental que se usará el resto del webinar.
 
@@ -133,7 +148,7 @@ Presentar cada tarjeta con su frase:
 
 ➡️ *Transición*: "Veamos el flujo completo de una reserva — aquí está todo el juego."
 
-### 🎞️ Diapositiva 9 — Flujo de una reserva
+### 🎞️ Diapositiva 10 — Flujo de una reserva
 
 **Objetivo**: explicar las 2 fases y la regla síncrono/asíncrono ANTES de la demo.
 
@@ -152,11 +167,11 @@ Presentar cada tarjeta con su frase:
 
 ## Bloque 4 · Demo en vivo — *10 min*
 
-### 🎞️ Diapositiva 10 — Divider <3> Demo en vivo
+### 🎞️ Diapositiva 11 — Divider <3> Demo en vivo
 
 "Momento de la verdad." (cambia a terminal/Swagger)
 
-### 🎞️ Diapositiva 11 — Pasos de la demo *(segunda pantalla, para no perderse)*
+### 🎞️ Diapositiva 12 — Pasos de la demo *(segunda pantalla, para no perderse)*
 
 Los 4 pasos, con su narración:
 
@@ -185,7 +200,7 @@ Los 4 pasos, con su narración:
 
 ⚠️ **No olvidar**: los JSON van **copiados** — escribir JSON en directo es tiempo muerto.
 
-### 🎞️ Diapositiva 12 — Logs en vivo *(recapitulación de la terminal)*
+### 🎞️ Diapositiva 13 — Logs en vivo *(recapitulación de la terminal)*
 
 Usar la slide como **mapa de lo que acaba de pasar** en la terminal:
 
@@ -328,7 +343,7 @@ com/example/tickets/
 
 ## Bloque 5 · Cierre — *5 min*
 
-### 🎞️ Diapositiva 13 — Cierre (innusual)
+### 🎞️ Diapositiva 14 — Cierre (innusual)
 
 Mensaje final en 3 frases (la síntesis):
 
@@ -369,4 +384,4 @@ Mensaje final en 3 frases (la síntesis):
 
 ---
 
-**Distribución de tiempos**: Apertura 2' · Por qué 8' · Arquitectura 5' · Demo (con bonus 💥 y extras 🗺️📄 si sobra tiempo) 12' · Cierre 3'.
+**Distribución de tiempos**: Apertura 2' · Por qué 9' · Arquitectura 5' · Demo (con bonus 💥 y extras 🗺️📄 si sobra tiempo) 12' · Cierre 3'.
