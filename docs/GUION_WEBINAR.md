@@ -117,7 +117,7 @@ Los 4 pilares (derecha), con una frase cada uno:
 Los 4 datos (derecha), con su frase:
 
 - **<1> AGOSTO 2023 · 1.0** — "Primera versión estable, sobre Spring Boot 3. El repositorio público llevaba vivo desde julio de 2022."
-- **<2> CADENCIA SEMESTRAL** — "Una línea por generación de Boot: 1.4.x para Boot 3.5, 2.x para Boot 4. Siete generaciones en tres años." ⚠️ **Conectar**: "este proyecto usa la 1.4 — la misma que ves en el pom."
+- **<2> CADENCIA SEMESTRAL** — "Sale una versión cada seis meses, en sintonía con Spring Boot: con Boot 3.5 te corresponde Modulith 1.4; con Boot 4, Modulith 2." ⚠️ **Conectar**: "este proyecto usa Boot 3.5 + Modulith 1.4 — el par correcto, no una versión vieja."
 - **<3> OPEN SOURCE** — "Apache 2.0 en spring-projects/spring-modulith, liderado por Oliver Drotbohm (equipo de Spring). Más de 1.200 estrellas en GitHub."
 - **<4> SOBRE ARCHUNIT** — "Las reglas que fallan la build usan ArchUnit. También externalización a Kafka/RabbitMQ y observabilidad Micrometer."
 
