@@ -127,7 +127,7 @@ Los 4 datos (derecha), con su frase:
 
 ---
 
-## Bloque 3 · Arquitectura del ejemplo — *5 min*
+## Bloque 3 · Arquitectura del ejemplo — *7 min*
 
 ### 🎞️ Diapositiva 8 — Divider <2>
 
@@ -148,7 +148,22 @@ Presentar cada tarjeta con su frase:
 
 ➡️ *Transición*: "Veamos el flujo completo de una reserva — aquí está todo el juego."
 
-### 🎞️ Diapositiva 10 — Flujo de una reserva
+### 🎞️ Diapositiva 10 — ¿Dónde acaba un módulo?
+
+**Objetivo**: explicar la regla de fronteras, que en el resto del deck se da por sabida.
+
+- Señalar el árbol: "**Cada carpeta directa** bajo `com.example.tickets` es un módulo. No hay configuración: Modulith los detecta al arrancar los tests."
+- "La frontera tiene dos lados: lo que está en la **raíz** de la carpeta del módulo es su **API pública**; lo que metes en **subcarpetas** es **interno** y ningún otro módulo puede tocarlo."
+- **Honestidad con el ejemplo**: "aquí los módulos son planos, así que hoy todo es público. Cuando algo debe ocultarse se mueve a un subpaquete — es justo lo que haremos en la demo 💥 con `events/internal/EventRepository`."
+- **Si quieres declararlo explícito**: `@ApplicationModule(allowedDependencies)` limita de qué módulos puedes depender; `@NamedInterface` expone un subpaquete con nombre. Por defecto el módulo es **cerrado** (`closed` en `/actuator/modulith`).
+
+⚠️ **No olvidar**: "un módulo solo ve la **raíz** del otro, nunca sus subpaquetes — y eso lo verifica ArchUnit en cada build".
+
+➡️ *Transición*: "Vamos al flujo completo de una reserva."
+
+---
+
+### 🎞️ Diapositiva 11 — Flujo de una reserva
 
 **Objetivo**: explicar las 2 fases y la regla síncrono/asíncrono ANTES de la demo.
 
@@ -167,11 +182,11 @@ Presentar cada tarjeta con su frase:
 
 ## Bloque 4 · Demo en vivo — *10 min*
 
-### 🎞️ Diapositiva 11 — Divider <3> Demo en vivo
+### 🎞️ Diapositiva 12 — Divider <3> Demo en vivo
 
 "Momento de la verdad." (cambia a terminal/Swagger)
 
-### 🎞️ Diapositiva 12 — Pasos de la demo *(segunda pantalla, para no perderse)*
+### 🎞️ Diapositiva 13 — Pasos de la demo *(segunda pantalla, para no perderse)*
 
 Los 4 pasos, con su narración:
 
@@ -200,7 +215,7 @@ Los 4 pasos, con su narración:
 
 ⚠️ **No olvidar**: los JSON van **copiados** — escribir JSON en directo es tiempo muerto.
 
-### 🎞️ Diapositiva 13 — Logs en vivo *(recapitulación de la terminal)*
+### 🎞️ Diapositiva 14 — Logs en vivo *(recapitulación de la terminal)*
 
 Usar la slide como **mapa de lo que acaba de pasar** en la terminal:
 
@@ -343,7 +358,7 @@ com/example/tickets/
 
 ## Bloque 5 · Cierre — *5 min*
 
-### 🎞️ Diapositiva 14 — Cierre (innusual)
+### 🎞️ Diapositiva 15 — Cierre (innusual)
 
 Mensaje final en 3 frases (la síntesis):
 
@@ -360,13 +375,13 @@ Mensaje final en 3 frases (la síntesis):
 
 1. ⭐ La tesis: *"las fronteras vuelven **dentro** del monolito"* (slide 4).
 2. ⭐ El módulo borrable: *"Notification desaparece y nadie cambia ni una línea"* (slide 8).
-3. ⭐ "La petición HTTP termina en milisegundos; el resto ocurre después" (slide 9).
+3. ⭐ "La petición HTTP termina en milisegundos; el resto ocurre después" (slide 11).
 4. ⭐ Las filas de `event_publication` se insertan **en la misma transacción** que la reserva (demo, paso 2 → H2).
 5. ⭐ Los listeners corren **AFTER_COMMIT, asíncronos y en transacción propia** (`REQUIRES_NEW`) — una anotación: `@ApplicationModuleListener`.
 6. ⭐ Fallo de un consumidor → publicación **incompleta** → **reintento** (no pérdida).
-7. ⭐ La regla síncrono/asíncrono: "resultado necesario ahora" vs. "el negocio sigue sin esperar" (slide 9, bloque <3>).
-8. ⭐ La saga en miniatura: confirmar ↔ cancelar como evento y contrapartida (slide 9, bloque <4>).
-9. ⭐ La arquitectura se **verifica en cada build** (y en cada test de módulo) — demo 💥 del `Cycle detected` en directo: descomentar, fallar, comentar, verde.
+7. ⭐ La regla síncrono/asíncrono: "resultado necesario ahora" vs. "el negocio sigue sin esperar" (slide 11, bloque <3>).
+8. ⭐ La saga en miniatura: confirmar ↔ cancelar como evento y contrapartida (slide 11, bloque <4>).
+9. ⭐ La arquitectura se **verifica en cada build** (y en cada test de módulo) — demo 💥 del `Cycle detected` en directo. Y la regla de fronteras (slide 10): raíz del paquete = API pública, subpaquetes = internos.
 10. ⭐ Documentación viva: PlantUML/C4 generados desde el código — "el diagrama no puede mentir".
 
 ---
@@ -384,4 +399,4 @@ Mensaje final en 3 frases (la síntesis):
 
 ---
 
-**Distribución de tiempos**: Apertura 2' · Por qué 9' · Arquitectura 5' · Demo (con bonus 💥 y extras 🗺️📄 si sobra tiempo) 12' · Cierre 3'.
+**Distribución de tiempos**: Apertura 2' · Por qué 9' · Arquitectura 7' · Demo (con bonus 💥 y extras 🗺️📄 si sobra tiempo) 12' · Cierre 3'.
