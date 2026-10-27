@@ -45,8 +45,8 @@ No hay XML, ni anotaciones de arquitectura en el código de negocio, ni config: 
 
 En este proyecto hay dos tipos de dependencia entre módulos, y las dos son deliberadas:
 
-- **Síncrona (lectura):** `booking → events` y `seats → events`, siempre a través de `EventService` (la API pública del módulo). Nunca se inyecta un `EventRepository` ajeno.
-- **Asíncrona (negocio):** `booking → seats` y `booking → notification`, exclusivamente por eventos. `booking` no sabe quién reacciona a sus eventos.
+- **Síncrona (lectura)**: cuando un cliente hace una reserva, `BookingService` **le pregunta a `EventService`** los datos del evento, sobre todo el precio; `events` responde y `booking` calcula el total y persiste. Y cuando `seats` necesita la capacidad del evento para inicializar su aforo, **le pregunta a `EventService`**. En ambos casos la conversación va por la API pública del módulo: nadie inyecta el `EventRepository` ajeno.
+- **Asíncrona (negocio)**: cuando `booking` confirma una reserva, **no llama a nadie**: publica `BookingConfirmedEvent` y termina. Cuando el evento llega, `seats` lo recoge y reserva las plazas, y `notification` lo recoge y envía el email. `booking` no sabe quién escucha, ni cuántos son, ni si lo hacen bien. Cuando la reserva se cancela pasa lo mismo con `BookingCancelledEvent`: `seats` libera el aforo y `notification` avisa al cliente.
 
 ### 3.2 La arquitectura se verifica en cada build
 
