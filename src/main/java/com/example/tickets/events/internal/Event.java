@@ -1,4 +1,4 @@
-package com.example.tickets.events;
+package com.example.tickets.events.internal;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

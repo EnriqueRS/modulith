@@ -89,4 +89,4 @@ curl http://localhost:8080/api/seats/1   # reservedSeats vuelve a 0
 
 ### Demo de arquitectura
 
-Rompe una regla y la build te lo impedirá: la guía completa, con los pasos exactos y la salida real de `verify()`, está en [docs/SPRING_MODULITH.md, sección 6](docs/SPRING_MODULITH.md#6-prueba-de-fuego-viola-una-frontera-y-mira-cómo-la-build-te-lo-impide). En resumen: inyecta `SeatService` en `BookingService` (un solo fichero) y ejecuta `./mvnw test` — `ModularityTests` fallará con `Cycle detected: booking → seats → booking`, señalando la clase, el método y la línea exacta.
+Rompe una regla y la build te lo impedirá: la guía completa, con los pasos exactos y la salida real de `verify()`, está en [docs/SPRING_MODULITH.md, sección 6](docs/SPRING_MODULITH.md#6-prueba-de-fuego-viola-una-frontera-y-mira-cómo-la-build-te-lo-impide). En resumen: inyecta `EventRepository` (interno de `events`) en `BookingService` (un solo fichero) y ejecuta `./mvnw test` — `ModularityTests` fallará con `non-exposed type ... within module`, señalando el constructor y la línea exacta.

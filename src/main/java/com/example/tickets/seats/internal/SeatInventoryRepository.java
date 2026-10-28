@@ -1,4 +1,4 @@
-package com.example.tickets.seats;
+package com.example.tickets.seats.internal;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

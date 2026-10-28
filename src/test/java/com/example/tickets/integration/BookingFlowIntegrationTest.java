@@ -1,12 +1,13 @@
 package com.example.tickets.integration;
 
-import com.example.tickets.booking.Booking;
+import com.example.tickets.booking.BookingInfo;
 import com.example.tickets.booking.BookingService;
 import com.example.tickets.booking.CreateBookingRequest;
-import com.example.tickets.events.Event;
+import com.example.tickets.events.CreateEventRequest;
+import com.example.tickets.events.EventInfo;
 import com.example.tickets.events.EventService;
-import com.example.tickets.seats.SeatInventory;
-import com.example.tickets.seats.SeatInventoryRepository;
+import com.example.tickets.seats.SeatAvailability;
+import com.example.tickets.seats.SeatService;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,14 +21,14 @@ import java.time.Instant;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Test de integración end-to-end: comprueba el flujo completo del modulith.
+ * Test de integración end-to-end: comprueba el flujo completo del modulith
+ * usando SOLO las APIs públicas de los módulos (los internos no se tocan).
  *
- * <p>Reserva confirmada → BookingConfirmedEvent publicado y registrado en la
- * tabla {@code event_publication} → handler de seats reserva el aforo
- * (asíncrono, tras el commit) → handler de notification envía el email.
+ * <p>Reserva confirmada -> BookingConfirmedEvent registrado en
+ * {@code event_publication} -> handler de seats reserva el aforo (asíncrono,
+ * tras el commit) -> handler de notification envía el email.
  *
- * <p>Al final, NO debe quedar ninguna publicación incompleta: si un handler
- * hubiera fallado, el evento quedaría pendiente de reintento.
+ * <p>Al final, NO debe quedar ninguna publicación incompleta.
  */
 @SpringBootTest
 class BookingFlowIntegrationTest {
@@ -39,19 +40,18 @@ class BookingFlowIntegrationTest {
     private BookingService bookingService;
 
     @Autowired
-    private SeatInventoryRepository seatInventoryRepository;
+    private SeatService seatService;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    private Event createEvent(int capacity) {
-        return eventService.createEvent(Event.builder()
-                .name("Evento Integración " + System.nanoTime())
-                .venue("Sala Test")
-                .eventDate(Instant.parse("2026-12-10T20:00:00Z"))
-                .price(new BigDecimal("15.00"))
-                .totalCapacity(capacity)
-                .build());
+    private EventInfo createEvent(int capacity) {
+        return eventService.createEvent(new CreateEventRequest(
+                "Evento Integración " + System.nanoTime(),
+                "Sala Test",
+                Instant.parse("2026-12-10T20:00:00Z"),
+                new BigDecimal("15.00"),
+                capacity));
     }
 
     private int pendingPublications() {
@@ -62,20 +62,21 @@ class BookingFlowIntegrationTest {
 
     @Test
     void confirmedBookingShouldReserveSeatsAsynchronously() {
-        Event event = createEvent(100);
+        EventInfo event = createEvent(100);
 
-        Booking booking = bookingService.createBooking(new CreateBookingRequest(event.getId(), "flow@example.com", 3));
+        BookingInfo booking = bookingService.createBooking(new CreateBookingRequest(event.id(), "flow@example.com", 3));
 
         // El listener es asíncrono (AFTER_COMMIT): esperamos a que se procese
         Awaitility.await()
                 .atMost(Duration.ofSeconds(10))
                 .untilAsserted(() -> {
-                    SeatInventory inventory = seatInventoryRepository.findByEventId(event.getId()).orElseThrow();
-                    assertThat(inventory.getReservedSeats()).isEqualTo(3);
+                    SeatAvailability availability = seatService.getAvailability(event.id()).orElseThrow();
+                    assertThat(availability.reservedSeats()).isEqualTo(3);
                 });
 
+        assertThat(booking.status()).isEqualTo("CONFIRMED");
+
         // El registro de publicaciones no debe dejar eventos pendientes
-        // (también asíncrono: esperamos a que todos los handlers completen)
         Awaitility.await()
                 .atMost(Duration.ofSeconds(10))
                 .untilAsserted(() -> assertThat(pendingPublications()).isZero());
@@ -83,22 +84,20 @@ class BookingFlowIntegrationTest {
 
     @Test
     void cancelledBookingShouldReleaseSeatsAsynchronously() {
-        Event event = createEvent(100);
-        Booking booking = bookingService.createBooking(new CreateBookingRequest(event.getId(), "flow2@example.com", 4));
+        EventInfo event = createEvent(100);
+        BookingInfo booking = bookingService.createBooking(new CreateBookingRequest(event.id(), "flow2@example.com", 4));
 
         Awaitility.await()
                 .atMost(Duration.ofSeconds(10))
-                .untilAsserted(() ->
-                        assertThat(seatInventoryRepository.findByEventId(event.getId()).orElseThrow()
-                                .getReservedSeats()).isEqualTo(4));
+                .untilAsserted(() -> assertThat(seatService.getAvailability(event.id()).orElseThrow()
+                        .reservedSeats()).isEqualTo(4));
 
-        bookingService.cancelBooking(booking.getId(), "Test integración");
+        bookingService.cancelBooking(booking.id(), "Test integración");
 
         Awaitility.await()
                 .atMost(Duration.ofSeconds(10))
-                .untilAsserted(() ->
-                        assertThat(seatInventoryRepository.findByEventId(event.getId()).orElseThrow()
-                                .getReservedSeats()).isZero());
+                .untilAsserted(() -> assertThat(seatService.getAvailability(event.id()).orElseThrow()
+                        .reservedSeats()).isZero());
 
         Awaitility.await()
                 .atMost(Duration.ofSeconds(10))
@@ -107,10 +106,10 @@ class BookingFlowIntegrationTest {
 
     @Test
     void completedPublicationsAreKeptForAudit() {
-        Event event = createEvent(50);
-        bookingService.createBooking(new CreateBookingRequest(event.getId(), "audit@example.com", 1));
+        EventInfo event = createEvent(50);
+        bookingService.createBooking(new CreateBookingRequest(event.id(), "audit@example.com", 1));
 
-        // Con spring.modulith.events.disable-deletion=true, el historial queda en la tabla
+        // Con completion-mode=UPDATE, el historial queda en la tabla
         Awaitility.await()
                 .atMost(Duration.ofSeconds(10))
                 .untilAsserted(() -> {

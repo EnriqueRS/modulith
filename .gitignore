@@ -14,3 +14,6 @@ target/
 
 # BD H2 en fichero (perfil persistente)
 /data/
+
+# Locks de LibreOffice
+.~lock*

@@ -1,6 +1,7 @@
 package com.example.tickets.seats;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,7 +15,9 @@ public class SeatController {
     private final SeatService seatService;
 
     @GetMapping("/{eventId}")
-    public SeatInventory availability(@PathVariable Long eventId) {
-        return seatService.getAvailability(eventId);
+    public ResponseEntity<SeatAvailability> availability(@PathVariable Long eventId) {
+        return seatService.getAvailability(eventId)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 }

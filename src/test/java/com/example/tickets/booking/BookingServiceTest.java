@@ -1,6 +1,9 @@
 package com.example.tickets.booking;
 
-import com.example.tickets.events.Event;
+import com.example.tickets.booking.internal.Booking;
+import com.example.tickets.booking.internal.BookingRepository;
+import com.example.tickets.booking.internal.BookingStatus;
+import com.example.tickets.events.EventInfo;
 import com.example.tickets.events.EventService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,7 +26,8 @@ import static org.mockito.Mockito.when;
 
 /**
  * Test unitario del módulo booking: comprueba que al crear/cancelar
- * se publica el evento de dominio correcto (el contrato de BookingEvents).
+ * se publica el evento de dominio correcto (el contrato de BookingEvents)
+ * y que la API devuelve DTOs, no entidades internas.
  */
 @ExtendWith(MockitoExtension.class)
 class BookingServiceTest {
@@ -40,17 +44,12 @@ class BookingServiceTest {
     @InjectMocks
     private BookingService bookingService;
 
-    private Event concert;
+    private EventInfo concert;
 
     @BeforeEach
     void setUp() {
-        concert = Event.builder()
-                .id(5L)
-                .name("Concierto Rock")
-                .price(new BigDecimal("30.00"))
-                .totalCapacity(500)
-                .eventDate(Instant.parse("2026-11-15T21:00:00Z"))
-                .build();
+        concert = new EventInfo(5L, "Concierto Rock", "Sala Apolo",
+                Instant.parse("2026-11-15T21:00:00Z"), new BigDecimal("30.00"), 500);
     }
 
     @Test
@@ -63,10 +62,10 @@ class BookingServiceTest {
                     return b;
                 });
 
-        Booking booking = bookingService.createBooking(new CreateBookingRequest(5L, "unit@example.com", 2));
+        BookingInfo booking = bookingService.createBooking(new CreateBookingRequest(5L, "unit@example.com", 2));
 
-        assertThat(booking.getStatus()).isEqualTo(BookingStatus.CONFIRMED);
-        assertThat(booking.getTotalAmount()).isEqualByComparingTo(new BigDecimal("60.00"));
+        assertThat(booking.status()).isEqualTo("CONFIRMED");
+        assertThat(booking.totalAmount()).isEqualByComparingTo(new BigDecimal("60.00"));
 
         ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
         verify(eventPublisher, times(1)).publishEvent(captor.capture());
@@ -91,10 +90,10 @@ class BookingServiceTest {
         when(bookingRepository.findById(42L)).thenReturn(Optional.of(existing));
         when(bookingRepository.save(any(Booking.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        Booking cancelled = bookingService.cancelBooking(42L, "Test unitario");
+        BookingInfo cancelled = bookingService.cancelBooking(42L, "Test unitario");
 
-        assertThat(cancelled.getStatus()).isEqualTo(BookingStatus.CANCELLED);
-        assertThat(cancelled.getCancellationReason()).isEqualTo("Test unitario");
+        assertThat(cancelled.status()).isEqualTo("CANCELLED");
+        assertThat(cancelled.cancellationReason()).isEqualTo("Test unitario");
 
         ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
         verify(eventPublisher).publishEvent(captor.capture());

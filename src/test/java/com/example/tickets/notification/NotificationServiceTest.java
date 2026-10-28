@@ -1,5 +1,6 @@
 package com.example.tickets.notification;
 
+import com.example.tickets.notification.internal.NotificationService;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;

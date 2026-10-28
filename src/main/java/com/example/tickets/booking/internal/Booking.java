@@ -1,4 +1,4 @@
-package com.example.tickets.booking;
+package com.example.tickets.booking.internal;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

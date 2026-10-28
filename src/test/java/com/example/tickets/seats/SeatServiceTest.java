@@ -1,13 +1,18 @@
 package com.example.tickets.seats;
 
-import com.example.tickets.events.Event;
+import com.example.tickets.events.EventInfo;
 import com.example.tickets.events.EventService;
+import com.example.tickets.seats.internal.InsufficientSeatsException;
+import com.example.tickets.seats.internal.SeatInventory;
+import com.example.tickets.seats.internal.SeatInventoryRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,11 +35,8 @@ class SeatServiceTest {
     @InjectMocks
     private SeatService seatService;
 
-    private final Event event = Event.builder()
-            .id(7L)
-            .name("Teatro")
-            .totalCapacity(100)
-            .build();
+    private final EventInfo event = new EventInfo(7L, "Teatro", "Sala",
+            Instant.parse("2026-12-01T20:00:00Z"), new BigDecimal("10.00"), 100);
 
     @Test
     void shouldInitializeInventoryLazilyAndReserve() {
@@ -43,11 +45,11 @@ class SeatServiceTest {
         when(seatInventoryRepository.save(any(SeatInventory.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
 
-        SeatInventory inventory = seatService.reserveSeats(7L, 10);
+        SeatAvailability inventory = seatService.reserveSeats(7L, 10);
 
-        assertThat(inventory.getTotalSeats()).isEqualTo(100);
-        assertThat(inventory.getReservedSeats()).isEqualTo(10);
-        assertThat(inventory.getAvailableSeats()).isEqualTo(90);
+        assertThat(inventory.totalSeats()).isEqualTo(100);
+        assertThat(inventory.reservedSeats()).isEqualTo(10);
+        assertThat(inventory.availableSeats()).isEqualTo(90);
     }
 
     @Test
@@ -67,8 +69,8 @@ class SeatServiceTest {
         when(seatInventoryRepository.save(any(SeatInventory.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
 
-        SeatInventory inventory = seatService.releaseSeats(7L, 5);
+        SeatAvailability inventory = seatService.releaseSeats(7L, 5).orElseThrow();
 
-        assertThat(inventory.getReservedSeats()).isEqualTo(15);
+        assertThat(inventory.reservedSeats()).isEqualTo(15);
     }
 }

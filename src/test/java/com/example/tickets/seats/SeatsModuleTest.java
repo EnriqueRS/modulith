@@ -1,7 +1,8 @@
 package com.example.tickets.seats;
 
-import com.example.tickets.events.Event;
+import com.example.tickets.events.EventInfo;
 import com.example.tickets.events.EventService;
+import com.example.tickets.seats.internal.InsufficientSeatsException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
@@ -9,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.modulith.test.ApplicationModuleTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -19,8 +21,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  *
  * <p>STANDALONE: el módulo seats arranca solo. seats depende síncronamente de
  * events (para conocer el aforo inicial), así que EventService se mockea.
- * La comunicación con booking es por eventos, así que booking NO hace falta:
- * el módulo solo conoce el contrato BookingEvents.
+ * La comunicación con booking es por eventos: el módulo solo conoce el
+ * contrato BookingEvents.
  *
  * <p>Cada test usa un eventId distinto: el contexto (y su H2) se comparte
  * entre métodos, y el inventario se inicializa perezosamente.
@@ -37,29 +39,25 @@ class SeatsModuleTest {
     @BeforeEach
     void setUp() {
         org.mockito.Mockito.lenient().when(eventService.getEventById(ArgumentMatchers.anyLong()))
-                .thenReturn(Event.builder()
-                        .id(1L)
-                        .name("Evento Mock")
-                        .totalCapacity(100)
-                        .eventDate(Instant.parse("2026-11-15T21:00:00Z"))
-                        .build());
+                .thenReturn(new EventInfo(1L, "Evento Mock", "Sala Mock",
+                        Instant.parse("2026-11-15T21:00:00Z"), new BigDecimal("10.00"), 100));
     }
 
     @Test
     void shouldReserveSeatsWithLazyInventoryInitialization() {
-        SeatInventory inventory = seatService.reserveSeats(101L, 5);
+        SeatAvailability inventory = seatService.reserveSeats(101L, 5);
 
-        assertThat(inventory.getTotalSeats()).isEqualTo(100);
-        assertThat(inventory.getReservedSeats()).isEqualTo(5);
-        assertThat(inventory.getAvailableSeats()).isEqualTo(95);
+        assertThat(inventory.totalSeats()).isEqualTo(100);
+        assertThat(inventory.reservedSeats()).isEqualTo(5);
+        assertThat(inventory.availableSeats()).isEqualTo(95);
     }
 
     @Test
     void shouldReleaseSeats() {
         seatService.reserveSeats(102L, 5);
-        SeatInventory inventory = seatService.releaseSeats(102L, 2);
+        SeatAvailability inventory = seatService.releaseSeats(102L, 2).orElseThrow();
 
-        assertThat(inventory.getReservedSeats()).isEqualTo(3);
+        assertThat(inventory.reservedSeats()).isEqualTo(3);
     }
 
     @Test

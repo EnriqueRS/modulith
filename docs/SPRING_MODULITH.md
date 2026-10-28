@@ -18,7 +18,7 @@ No es un framework de ejecución pesado: es una capa de **convenciones, verifica
 | Modularidad por paquetes, sin configuración | Estructura de `src/main/java/com/example/tickets` (4 módulos) |
 | Verificación arquitectónica en la build | `src/test/java/com/example/tickets/ModularityTests.java` → `modules.verify()` |
 | Contratos de eventos entre módulos | `src/main/java/com/example/tickets/booking/BookingEvents.java` |
-| Escucha desacoplada tras el commit | `seats/BookingEventHandler.java` y `notification/BookingNotificationHandler.java` → `@ApplicationModuleListener` |
+| Escucha desacoplada tras el commit | `seats/internal/BookingEventHandler.java` y `notification/internal/BookingNotificationHandler.java` → `@ApplicationModuleListener` |
 | Entrega fiable de eventos con reintentos | Dependencias `spring-modulith-events-jpa` + `spring-modulith-events-jackson` y `application.properties` |
 | Observabilidad de módulos y eventos | `/actuator/modulith`, métricas `modulith.events.processed` |
 | Tests que arrancan un solo módulo | `*ModuleTest.java` con `@ApplicationModuleTest` |
@@ -34,12 +34,23 @@ Con Spring Modulith, cada paquete directo bajo la aplicación es un **módulo**,
 
 ```
 src/main/java/com/example/tickets/
-├── TicketsApplication.java   # @SpringBootApplication (punto de entrada)
-├── events/                   # Módulo: catálogo de eventos (conciertos, obras...)
-├── booking/                  # Módulo: reservas. Publica BookingConfirmed/CancelledEvent
-├── seats/                    # Módulo: aforo. Escucha los eventos de booking
-└── notification/             # Módulo: emails. Escucha los eventos de booking
+├── TicketsApplication.java    # @SpringBootApplication (punto de entrada)
+├── OpenApiGroupsConfig.java   # config transversal (en la raíz: no forma módulo)
+├── events/                    # Módulo: catálogo de eventos
+│   ├── EventService · EventInfo · EventController · CreateEventRequest  # API pública
+│   └── internal/              # Event, EventRepository
+├── booking/                   # Módulo: reservas
+│   ├── BookingService · BookingInfo · BookingController · CreateBookingRequest
+│   ├── BookingEvents.java     # contrato de eventos (público)
+│   └── internal/              # Booking, BookingRepository, BookingStatus
+├── seats/                     # Módulo: aforo
+│   ├── SeatService · SeatAvailability · SeatController  # API pública
+│   └── internal/              # SeatInventory, SeatInventoryRepository, BookingEventHandler
+└── notification/              # Módulo: emails (sin API pública)
+    └── internal/              # NotificationService, BookingNotificationHandler
 ```
+
+Los internos (entidades, repositorios, handlers) viven bajo `internal/`: `verify()` falla si otro módulo los toca. Lo único expuesto es lo que está en la raíz: servicios, DTOs y controladores.
 
 No hay XML, ni anotaciones de arquitectura en el código de negocio, ni config: la estructura del paquete **es** la arquitectura. Los módulos se ven en `ModularityTests` (basta `ApplicationModules.of(TicketsApplication.class)` para que Modulith los deduzca).
 
@@ -85,7 +96,7 @@ Son records inmutables, versionables y autocontenidos. `seats` y `notification` 
 
 ### 3.4 `@ApplicationModuleListener`: el listener que lo lleva todo hecho
 
-`seats/BookingEventHandler.java`:
+`seats/internal/BookingEventHandler.java`:
 
 ```java
 @ApplicationModuleListener
@@ -156,7 +167,7 @@ La respuesta real del proyecto (formateada; un objeto por módulo):
     "type": "closed",
     "shared": false,
     "dependencies": [
-      { "types": ["ENTITY", "USES_COMPONENT"], "target": "events" }
+      { "target": "events", "types": ["USES_COMPONENT"] }
     ]
   },
   "notification": {
@@ -166,7 +177,7 @@ La respuesta real del proyecto (formateada; un objeto por módulo):
     "type": "closed",
     "shared": false,
     "dependencies": [
-      { "types": ["EVENT_LISTENER"], "target": "booking" }
+      { "target": "booking", "types": ["EVENT_LISTENER"] }
     ]
   },
   "seats": {
@@ -176,8 +187,8 @@ La respuesta real del proyecto (formateada; un objeto por módulo):
     "type": "closed",
     "shared": false,
     "dependencies": [
-      { "types": ["ENTITY", "USES_COMPONENT"], "target": "events" },
-      { "types": ["EVENT_LISTENER"], "target": "booking" }
+      { "target": "booking", "types": ["EVENT_LISTENER"] },
+      { "target": "events", "types": ["USES_COMPONENT"] }
     ]
   }
 }
@@ -189,16 +200,16 @@ Significado de cada campo:
 |---|---|
 | `"<nombreMódulo>"` (clave del objeto) | Nombre técnico del módulo: es el valor que usan los `target` de las dependencias para referirse a él. |
 | `displayName` | Nombre legible del módulo (`Events`, `Booking`...). |
-| `basePackage` | Paquete raíz del módulo: sus clases son la API pública; los subpaquetes serían internos. |
+| `basePackage` | Paquete raíz del módulo: sus clases son la API pública; los subpaquetes (`internal/`) son internos. |
 | `parent` | (Solo aparece si existe) nombre del módulo padre cuando hay módulos anidados. No está en este proyecto: ningún módulo anida a otro. |
 | `nested` | Lista de módulos anidados dentro de este (vacía aquí). |
 | `type` | Política de exposición. `closed` (nuestro caso): solo se expone el paquete base y las interfaces con nombre. `open` (`@ApplicationModule(type = OPEN)`) expondría también los subpaquetes. |
 | `shared` | `true` si el módulo está registrado como **módulo compartido** (accesible por cualquier otro sin declararlo explícitamente como dependencia permitida). Aquí todos son `false`. |
 | `dependencies[]` | Todas las dependencias **salientes** del módulo, agrupadas por módulo destino. No hay flechas entrantes: si `booking` depende de `events`, la entrada aparece en `booking`, no en `events`. |
 | `dependencies[].target` | Módulo destino de la dependencia. |
-| `dependencies[].types[]` | Tipo de cada dependencia: `USES_COMPONENT` (inyección de un bean del otro módulo, p. ej. `EventService`), `ENTITY` (referencia a una entidad del otro módulo, p. ej. `Event`), `EVENT_LISTENER` (escucha eventos publicados por el módulo destino) o `DEFAULT` (dependencia de tipo simple que no encaja en las anteriores). |
+| `dependencies[].types[]` | Tipo de cada dependencia: `USES_COMPONENT` (inyección de un bean del otro módulo, p. ej. `EventService`), `ENTITY` (referencia a una entidad del otro módulo; ya no aparece aquí porque los módulos exponen DTOs, no entidades), `EVENT_LISTENER` (escucha eventos publicados por el módulo destino) o `DEFAULT` (dependencia de tipo simple que no encaja en las anteriores). |
 
-Leyendo el JSON se recupera la arquitectura completa sin abrir el código: `events` es el módulo base sin dependencias; `booking` lo usa de forma síncrona (`ENTITY` + `USES_COMPONENT`); `seats`, además de `events`, escucha los eventos de `booking` (`EVENT_LISTENER`); y `notification` es puro escuchador. Nótese que las dependencias por eventos apuntan **del consumidor al publicador**: por eso, si `booking` llamara síncronamente a `seats`, aquí se vería como una dependencia adicional `USES_COMPONENT` de `booking` hacia `seats`, cerrando el círculo que `verify()` prohíbe (sección 6).
+Leyendo el JSON se recupera la arquitectura completa sin abrir el código: `events` es el módulo base sin dependencias; `booking` lo usa de forma síncrona (`USES_COMPONENT`); `seats`, además de `events`, escucha los eventos de `booking` (`EVENT_LISTENER`); y `notification` es puro escuchador. No hay dependencias `ENTITY` porque ningún módulo comparte entidades: la API expone DTOs (`EventInfo`, `BookingInfo`, `SeatAvailability`). Nótese que las dependencias por eventos apuntan **del consumidor al publicador**: por eso, si `booking` llamara síncronamente a `seats`, aquí se vería como una dependencia adicional `USES_COMPONENT` de `booking` hacia `seats`, cerrando el círculo que `verify()` prohíbe (sección 6).
 
 ### 3.7 Tests de módulo aislados
 
@@ -276,8 +287,8 @@ El flujo tiene **dos fases** separadas por el commit, y entender esa frontera es
 
 **Fase asíncrona — después del commit** (hilos independientes, cada una con su transacción `REQUIRES_NEW`):
 
-5. `seats.BookingEventHandler.onBookingConfirmed` → `SeatService.reserveSeats(eventId, quantity)`: inicializa el aforo si es la primera vez (leyendo la capacidad del evento vía `events`) y aumenta las plazas reservadas.
-6. `notification.BookingNotificationHandler.onBookingConfirmed` → compone el email con el detalle y lo emite por consola.
+5. `seats.internal.BookingEventHandler.onBookingConfirmed` → `SeatService.reserveSeats(eventId, quantity)`: inicializa el aforo si es la primera vez (leyendo la capacidad del evento vía `events`) y aumenta las plazas reservadas.
+6. `notification.internal.BookingNotificationHandler.onBookingConfirmed` → compone el email con el detalle y lo emite por consola.
 7. Cada handler, al terminar **sin excepción**, marca **su** publicación como completada (`completion_date`, con `completion-mode=UPDATE` queda en la tabla para auditoría).
 
 El orden 5-6 no está garantizado (corren en paralelo): eso es exactamente lo que muestra el test de integración, que usa Awaitility en lugar de suponer orden.
@@ -408,14 +419,14 @@ La reserva 2 ya estaba `CONFIRMED` en base de datos desde el paso 3; su aforo se
 
 ## 6. Prueba de fuego: viola una frontera y mira cómo la build te lo impide
 
-La demostración cabe en **un solo fichero**. El escenario: alguien de `booking` quiere comprobar el aforo directamente y llama a `SeatService`. Parece razonable... pero crea una dependencia **síncrona** `booking → seats` cuando `seats` ya consume los eventos de `booking`: un **ciclo** entre módulos.
+La demostración cabe en **un solo fichero** y ya no hay que mover nada: los internos están donde deben. El escenario: alguien de `booking` quiere contar eventos y, en vez de pasar por `EventService`, inyecta directamente `EventRepository` (interno de `events`).
 
-### Paso 1 — Inyectar `SeatService` en `BookingService`
+### Paso 1 — Inyectar el interno en `BookingService`
 
-En `src/main/java/com/example/tickets/booking/BookingService.java`, añade el import, el campo traidor y una llamada (con Lombok `@RequiredArgsConstructor`, basta declarar el campo):
+En `src/main/java/com/example/tickets/booking/BookingService.java`, añade el import y el campo (con Lombok `@RequiredArgsConstructor`, basta declararlo: entra en el constructor):
 
 ```java
-import com.example.tickets.seats.SeatService;
+import com.example.tickets.events.internal.EventRepository;
 
 @Service
 @RequiredArgsConstructor
@@ -424,13 +435,8 @@ public class BookingService {
 
     private final BookingRepository bookingRepository;
     private final EventService eventService;
-    private final SeatService seatService; // ⚠️ VIOLACIÓN: ciclo booking ↔ seats
+    private final EventRepository eventRepository; // ⚠️ VIOLACIÓN: interno de events
     private final ApplicationEventPublisher eventPublisher;
-
-    public Booking createBooking(CreateBookingRequest request) {
-        Event event = eventService.getEventById(request.eventId());
-        seatService.getAvailability(event.getId()); // ⚠️ trabajo de Seats hecho desde Booking
-        // ...
 ```
 
 ### Paso 2 — La build lo impide
@@ -443,32 +449,27 @@ public class BookingService {
 
 ```text
 org.springframework.modulith.core.Violations:
-- Cycle detected: Slice booking ->
-                Slice seats ->
-                Slice booking
-  1. Dependencies of Slice booking
-    - Constructor <...BookingService.<init>(..., SeatService, ...)> has parameter of type
-      <...seats.SeatService> in (BookingService.java:0)
-    - Field <...BookingService.seatService> has type <...seats.SeatService> in (BookingService.java:0)
-    - Method <...BookingService.createBooking(...)> calls method
-      <...seats.SeatService.getAvailability(java.lang.Long)> in (BookingService.java:45)
-  2. Dependencies of Slice seats
-    - Method <...BookingEventHandler.onBookingConfirmed(...)> has parameter of type
-      <...booking.BookingEvents$BookingConfirmedEvent> in (BookingEventHandler.java:0)
-    ...
+- Module 'booking' depends on non-exposed type
+  com.example.tickets.events.internal.EventRepository within module 'events'!
+  BookingService declares constructor
+  BookingService(BookingRepository, EventService, EventRepository, ApplicationEventPublisher)
+  in (BookingService.java:0)
+- Module 'booking' depends on non-exposed type
+  com.example.tickets.events.internal.EventRepository within module 'events'!
+  Field <com.example.tickets.booking.BookingService.eventRepository> has type
+  <com.example.tickets.events.internal.EventRepository> in (BookingService.java:0)
 ```
 
-El diagnóstico señala el ciclo completo con **ambas direcciones**: la dependencia nueva que acabas de añadir (`booking → seats`, con clase, método y línea exactos) y la que ya existía al revés (`seats → booking`, por los eventos que consume). `BookingModuleTest` tampoco arranca: `@ApplicationModuleTest` ejecuta la misma verificación al inicializar el slice.
+El diagnóstico señala el **módulo que viola** (`booking`), el **tipo no expuesto**, la regla (`non-exposed type within module`) y el **constructor/campo** concretos. `BookingModuleTest` tampoco arranca: `@ApplicationModuleTest` ejecuta la misma verificación al inicializar el slice.
 
 ### Paso 3 — Revertir
 
-Elimina de `BookingService` el import de `SeatService`, el campo y la llamada a `getAvailability`:
+Elimina el import y el campo de `BookingService`:
 
 ```bash
-# quita estas tres líneas de BookingService.java:
-#   import com.example.tickets.seats.SeatService;
-#   private final SeatService seatService; ...
-#   seatService.getAvailability(event.getId()); ...
+# quita estas dos líneas de BookingService.java:
+#   import com.example.tickets.events.internal.EventRepository;
+#   private final EventRepository eventRepository; ...
 ./mvnw test
 ```
 
@@ -478,11 +479,12 @@ Suite completa de nuevo en verde (22/22).
 
 | Mecanismo | Qué comprueba |
 |---|---|
-| `modules.verify()` (ArchUnit) | En cada `mvnw test`: sin ciclos entre módulos, con diagnóstico quirúrgico (clase, método, línea). |
+| Convención de paquetes | `internal/` marca los tipos como no expuestos, sin configuración. |
+| `modules.verify()` (ArchUnit) | En cada `mvnw test`: sin accesos a internos ajenos ni ciclos, con diagnóstico quirúrgico (módulo, tipo, campo/línea). |
 | `@ApplicationModuleTest` | La misma verificación en el arranque de cada test de módulo. |
-| La regla de oro | `booking` se comunica con `seats` **por eventos**; hacerlo síncrono no es "un detalle", es romper el diseño — y la build lo sabe. |
+| El propio compilador | Dentro del módulo, sus internos son libres de usarse: la frontera solo aplica **entre** módulos. |
 
-> Variante más estricta: si además mueves una clase a un subpaquete `internal/` del módulo (p. ej. `events/internal/`) y la inyectas desde otro módulo, `verify()` falla con `non-exposed type ... within module ...` — la regla de API pública vs. internos. La convención: paquete raíz del módulo = API pública; subpaquetes = internos.
+> Variante: el **ciclo**. Si en lugar de tocar un interno introduces una dependencia síncrona contraria a una existente (p. ej., `BookingService` inyectando `SeatService`, cuando `seats` ya escucha eventos de `booking`), `verify()` falla con `Cycle detected: booking → seats → booking`. También es una demo de un solo fichero.
 
 ## 7. Conclusión
 

@@ -1,5 +1,6 @@
 package com.example.tickets.notification;
 
+import com.example.tickets.notification.internal.NotificationService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.modulith.test.ApplicationModuleTest;

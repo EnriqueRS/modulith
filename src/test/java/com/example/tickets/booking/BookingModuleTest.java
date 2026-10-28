@@ -1,6 +1,6 @@
 package com.example.tickets.booking;
 
-import com.example.tickets.events.Event;
+import com.example.tickets.events.EventInfo;
 import com.example.tickets.events.EventService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,12 +19,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Test de MÓDULO para booking con Spring Modulith.
  *
  * <p>STANDALONE: arranca SOLO booking. La dependencia síncrona con events se
- * resuelve con un mock (@MockitoBean): el test demuestra que booking solo
- * necesita la API pública del módulo externo.
+ * resuelve con un mock (@MockitoBean) de su API pública (EventService/EventInfo).
  *
- * <p>{@code @RecordApplicationEvents} es utilidad de Spring Framework
- * (integrada con los tests de Modulith): captura los eventos publicados para
- * verificar el contrato asíncrono sin levantar los módulos consumidores.
+ * <p>{@code @RecordApplicationEvents} captura los eventos publicados para
+ * verificar el contrato asíncrono sin levantar los consumidores.
  */
 @ApplicationModuleTest
 @RecordApplicationEvents
@@ -42,36 +40,31 @@ class BookingModuleTest {
     @BeforeEach
     void setUp() {
         org.mockito.Mockito.lenient().when(eventService.getEventById(1L))
-                .thenReturn(Event.builder()
-                        .id(1L)
-                        .name("Concierto Mock")
-                        .price(new BigDecimal("30.00"))
-                        .totalCapacity(100)
-                        .eventDate(Instant.parse("2026-11-15T21:00:00Z"))
-                        .build());
+                .thenReturn(new EventInfo(1L, "Concierto Mock", "Sala Mock",
+                        Instant.parse("2026-11-15T21:00:00Z"), new BigDecimal("30.00"), 100));
     }
 
     @Test
     void shouldCreateBookingAndPublishConfirmedEvent() {
-        Booking booking = bookingService.createBooking(new CreateBookingRequest(1L, "module@example.com", 2));
+        BookingInfo booking = bookingService.createBooking(new CreateBookingRequest(1L, "module@example.com", 2));
 
-        assertThat(booking.getId()).isNotNull();
-        assertThat(booking.getStatus()).isEqualTo(BookingStatus.CONFIRMED);
-        assertThat(booking.getTotalAmount()).isEqualByComparingTo(new BigDecimal("60.00"));
+        assertThat(booking.id()).isNotNull();
+        assertThat(booking.status()).isEqualTo("CONFIRMED");
+        assertThat(booking.totalAmount()).isEqualByComparingTo(new BigDecimal("60.00"));
 
         // El contrato asíncrono del módulo se cumple: BookingConfirmedEvent publicado
         assertThat(events.stream(BookingEvents.BookingConfirmedEvent.class).count()).isEqualTo(1);
         assertThat(events.stream(BookingEvents.BookingConfirmedEvent.class)
-                .findFirst().orElseThrow().bookingId()).isEqualTo(booking.getId());
+                .findFirst().orElseThrow().bookingId()).isEqualTo(booking.id());
     }
 
     @Test
     void shouldCancelBookingAndPublishCancelledEvent() {
-        Booking booking = bookingService.createBooking(new CreateBookingRequest(1L, "module@example.com", 1));
+        BookingInfo booking = bookingService.createBooking(new CreateBookingRequest(1L, "module@example.com", 1));
 
-        Booking cancelled = bookingService.cancelBooking(booking.getId(), "Test módulo");
+        BookingInfo cancelled = bookingService.cancelBooking(booking.id(), "Test módulo");
 
-        assertThat(cancelled.getStatus()).isEqualTo(BookingStatus.CANCELLED);
+        assertThat(cancelled.status()).isEqualTo("CANCELLED");
         assertThat(events.stream(BookingEvents.BookingCancelledEvent.class).count()).isEqualTo(1);
     }
 }

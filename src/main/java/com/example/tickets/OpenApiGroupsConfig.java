@@ -1,4 +1,4 @@
-package com.example.tickets.config;
+package com.example.tickets;
 
 import org.springdoc.core.models.GroupedOpenApi;
 import org.springframework.context.annotation.Bean;

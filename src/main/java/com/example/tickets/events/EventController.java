@@ -1,5 +1,6 @@
 package com.example.tickets.events;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,17 +19,17 @@ public class EventController {
     private final EventService eventService;
 
     @PostMapping
-    public Event create(@RequestBody Event event) {
-        return eventService.createEvent(event);
+    public EventInfo create(@Valid @RequestBody CreateEventRequest request) {
+        return eventService.createEvent(request);
     }
 
     @GetMapping
-    public List<Event> getAll() {
+    public List<EventInfo> getAll() {
         return eventService.getAllEvents();
     }
 
     @GetMapping("/{id}")
-    public Event getById(@PathVariable Long id) {
+    public EventInfo getById(@PathVariable Long id) {
         return eventService.getEventById(id);
     }
 }

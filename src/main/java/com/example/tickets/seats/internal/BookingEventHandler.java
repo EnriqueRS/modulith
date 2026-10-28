@@ -1,6 +1,7 @@
-package com.example.tickets.seats;
+package com.example.tickets.seats.internal;
 
 import com.example.tickets.booking.BookingEvents.BookingCancelledEvent;
+import com.example.tickets.seats.SeatService;
 import com.example.tickets.booking.BookingEvents.BookingConfirmedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

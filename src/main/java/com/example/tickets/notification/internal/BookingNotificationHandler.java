@@ -1,4 +1,4 @@
-package com.example.tickets.notification;
+package com.example.tickets.notification.internal;
 
 import com.example.tickets.booking.BookingEvents.BookingCancelledEvent;
 import com.example.tickets.booking.BookingEvents.BookingConfirmedEvent;

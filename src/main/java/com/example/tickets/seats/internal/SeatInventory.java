@@ -1,4 +1,4 @@
-package com.example.tickets.seats;
+package com.example.tickets.seats.internal;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

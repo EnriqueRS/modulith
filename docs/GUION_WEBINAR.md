@@ -154,7 +154,7 @@ Presentar cada tarjeta con su frase:
 
 - Señalar el árbol: "**Cada carpeta directa** bajo `com.example.tickets` es un módulo. No hay configuración: Modulith los detecta al arrancar los tests."
 - "La frontera tiene dos lados: lo que está en la **raíz** de la carpeta del módulo es su **API pública**; lo que metes en **subcarpetas** es **interno** y ningún otro módulo puede tocarlo."
-- **Honestidad con el ejemplo**: "aquí los módulos son planos, así que hoy todo es público. Cuando algo debe ocultarse se mueve a un subpaquete — es justo lo que haremos en la demo 💥 con `events/internal/EventRepository`."
+- **En el código**: "cada módulo ya tiene su carpeta `internal/`: entidades, repositorios y handlers. La raíz solo expone servicios, DTOs y controladores — el árbol de la slide es la estructura real del proyecto."
 - **Si quieres declararlo explícito**: `@ApplicationModule(allowedDependencies)` limita de qué módulos puedes depender; `@NamedInterface` expone un subpaquete con nombre. Por defecto el módulo es **cerrado** (`closed` en `/actuator/modulith`).
 
 ⚠️ **No olvidar**: "un módulo solo ve la **raíz** del otro, nunca sus subpaquetes — y eso lo verifica ArchUnit en cada build".
