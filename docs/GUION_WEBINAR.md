@@ -152,6 +152,26 @@ Presentar cada tarjeta con su frase:
 
 **Objetivo**: explicar la regla de fronteras, que en el resto del deck se da por sabida.
 
+**Árbol real del proyecto** (la slide lo muestra simplificado; tenlo a mano por si preguntan o quieres enseñarlo ampliado):
+
+```
+com.example.tickets/
+├── TicketsApplication.java
+├── OpenApiGroupsConfig.java        # config (en la raíz: no forma módulo)
+├── events/                         # módulo
+│   ├── EventService · EventInfo · EventController · CreateEventRequest   # API
+│   └── internal/                   # Event, EventRepository
+├── booking/                        # módulo
+│   ├── BookingService · BookingInfo · BookingController · CreateBookingRequest
+│   ├── BookingEvents.java          # contrato de eventos (público)
+│   └── internal/                   # Booking, BookingRepository, BookingStatus
+├── seats/                          # módulo
+│   ├── SeatService · SeatAvailability · SeatController                   # API
+│   └── internal/                   # SeatInventory, SeatInventoryRepository, BookingEventHandler
+└── notification/                   # módulo sin API pública
+    └── internal/                   # NotificationService, BookingNotificationHandler
+```
+
 - Señalar el árbol: "**Cada carpeta directa** bajo `com.example.tickets` es un módulo. No hay configuración: Modulith los detecta al arrancar los tests."
 - "La frontera tiene dos lados: lo que está en la **raíz** de la carpeta del módulo es su **API pública**; lo que metes en **subcarpetas** es **interno** y ningún otro módulo puede tocarlo."
 - **En el código**: "cada módulo ya tiene su carpeta `internal/`: entidades, repositorios y handlers. La raíz solo expone servicios, DTOs y controladores — el árbol de la slide es la estructura real del proyecto."
