@@ -198,6 +198,24 @@ El desplegable superior agrupa los endpoints **por módulo** (configurado en `Op
 ./mvnw spring-boot:run 
 ```
 
+1. **Árbol del proyecto en el IDE** — señalar el espejo carpeta↔endpoint:
+
+```
+com/example/tickets/
+├── events/EventController.java        →  /api/events
+├── booking/BookingController.java     →  /api/bookings
+└── seats/SeatController.java          →  /api/seats/{eventId}
+```
+
+2. **Swagger UI** — abrir el desplegable de grupos: **`01-events`**, **`02-booking`**, **`03-seats`** (configurados por paquete en `OpenApiGroupsConfig`).
+
+**Mensajes a decir**:
+
+- "Cada módulo posee **sus** endpoints: la URL refleja el paquete. El API no es un vertedero: es un espejo de la estructura de carpetas."
+- Abrir el grupo `02-booking`: "solo sus 4 endpoints — nada de Events ni de Seats se cuela aquí."
+- Remate: "¿y Notification? **No tiene endpoints**: es consumidor puro de eventos. Su 'API' son los listeners, y no aparece en Swagger porque no expone REST."
+
+
 ### Diagramas generados desde el código
 
 `ModularityTests.writesArchitectureDocumentation()` ejecuta:
@@ -278,17 +296,6 @@ org.springframework.modulith.core.Violations:
   <com.example.tickets.events.internal.EventRepository> in (BookingService.java:0)
 ```
 
-### 🎞️ Diapositiva 14 — Logs en vivo *(recapitulación de la terminal)*
-
-Usar la slide como **mapa de lo que acaba de pasar** en la terminal:
-
-- "Primero la petición: Booking crea la **reserva #1**, 4 entradas, total 160, `CONFIRMED`."
-- "Se publica el evento, y fijaos en las **etiquetas entre corchetes**: cada módulo firma sus logs — podemos seguir la traza de una reserva leyendo solo un color."
-- "Seats reserva 4 plazas: el aforo pasa de 80 a **76 disponibles**. Notification envía el email."
-- "Y por último el `HTTP 201 Created` en 91 ms. **El cliente no esperó ni al aforo ni al email. Esa asimetría temporal es exactamente el desacoplamiento.**"
-
-⚠️ **No olvidar**: cerrar el círculo con el Event Publication Registry — "si cualquier listener falla, no se pierde nada: queda registrado y se reintenta".
-
 ### 💥 Bonus de la demo — Romper la arquitectura en directo *(2 min, el golpe de efecto)*
 
 **Objetivo**: que la audiencia VEA que la arquitectura se ejecuta — no es un diagrama, es la build.
@@ -354,9 +361,15 @@ org.springframework.modulith.core.Violations:
 1. Crear una reserva en Swagger o con curl.
 2. **Señalar en los logs**:
 
-```text
-🎟️ [Seats] BookingConfirmed para reserva 1: reservando 2 plazas del evento 1
-✅ [Seats] Aforo reservado para la reserva 1
+```bash
+# 1. Evento con aforo 50
+curl -X POST http://localhost:8080/api/events -H "Content-Type: application/json" \
+  -d '{"name":"Demo Evento","venue":"Sala X","eventDate":"2026-12-01T20:00:00Z","price":10.00,"totalCapacity":50}'
+
+# 2. Reserva A: las 50 entradas -> aforo lleno (reservedSeats: 50, available: 0)
+curl -X POST http://localhost:8080/api/bookings -H "Content-Type: application/json" \
+  -d '{"eventId":1,"customerEmail":"a@example.com","quantity":50}'
+
 ```
 
 ...y **ni una mención de [Notification]**: cero errores, cero stacktraces, el aforo reservado (`reservedSeats: 2`), el cliente con su respuesta.
@@ -364,58 +377,6 @@ org.springframework.modulith.core.Violations:
 **Mensajes a decir**:
 
 - "El módulo de emails ha desaparecido y **el negocio sigue**. Ni Booking ni Seats saben que falta: solo conocen un evento que **nadie** escucha ahora... y eso tampoco rompe nada."
-- "Fijaos en el registro: para el mismo evento ya solo se crea la publicación de Seats. Los listeners se descubren en runtime, no están cableados a mano."
-- Remate: "Esto es lo que compra la comunicación por eventos: **sumar o quitar consumidores es una decisión de despliegue, no un proyecto de refactorización**."
-
-**Reversión**: quitar el comentario de `@Component`, reiniciar → los emails vuelven. Suite completa en verde (22/22).
-
-⚠️ **No olvidar**: restaurar el `@Component` al acabar (estado commitado). Este bonus y el 💥 se complementan: el 💥 muestra que la build **prohíbe** el acoplamiento indebido; este 🗑️ muestra la **recompensa** del desacoplamiento correcto.
-
-### 🗺️ Extra 1 — Los endpoints siguen la estructura de carpetas *(1-2 min)*
-
-**Objetivo**: demostrar que la superficie REST hereda la modularidad — no hay un "mega controller".
-
-**Acción** (dos pantallas, 30 s cada una):
-
-1. **Árbol del proyecto en el IDE** — señalar el espejo carpeta↔endpoint:
-
-```
-com/example/tickets/
-├── events/EventController.java        →  /api/events
-├── booking/BookingController.java     →  /api/bookings
-└── seats/SeatController.java          →  /api/seats/{eventId}
-```
-
-2. **Swagger UI** — abrir el desplegable de grupos: **`01-events`**, **`02-booking`**, **`03-seats`** (configurados por paquete en `OpenApiGroupsConfig`).
-
-**Mensajes a decir**:
-
-- "Cada módulo posee **sus** endpoints: la URL refleja el paquete. El API no es un vertedero: es un espejo de la estructura de carpetas."
-- Abrir el grupo `02-booking`: "solo sus 4 endpoints — nada de Events ni de Seats se cuela aquí."
-- Remate: "¿y Notification? **No tiene endpoints**: es consumidor puro de eventos. Su 'API' son los listeners, y no aparece en Swagger porque no expone REST."
-
-### 📄 Extra 2 — Documentación viva: PlantUML y C4 desde el código *(2 min)*
-
-**Objetivo**: demostrar que la documentación de arquitectura **se genera** y no se mantiene a mano.
-
-**Acción**:
-
-1. Ejecutar (si no se acaba de hacer en el bonus 💥):
-
-```bash
-./mvnw test -Dtest=ModularityTests
-```
-
-2. Abrir **`target/spring-modulith-docs/`** y enseñar:
-   - **`components.puml`** — el diagrama global de componentes: los 4 módulos y sus dependencias, **idéntico a la slide 8**.
-   - **`module-booking.puml`**, `module-events.puml`, `module-seats.puml`, `module-notification.puml` — un diagrama por módulo, con sus API expuestas y los eventos que publica/escucha.
-   - **`all-docs.adoc`** — el documento C4 agregado (modelado de componentes y relaciones).
-
-**Mensajes a decir**:
-
-- "Esto **no está dibujado a mano**: se genera desde el código en cada ejecución de tests. El diagrama de arquitectura no puede quedar obsoleto porque no lo edita nadie."
-- Conectar con el bonus 💥: "y si violas las reglas, ni siquiera llega a generarse — la build falla **antes**."
-- Visualizarlo: plugin de PlantUML de IntelliJ/VS Code, o pegando el `.puml` en el servidor de plantuml.com.
 
 ---
 
