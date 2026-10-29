@@ -35,12 +35,7 @@
 
 **Objetivo**: poner el tema y el hilo conductor.
 
-- Saludo + presentación personal (30 s).
-- "Hoy hablamos de **modularidad dentro del monolito**: cómo Spring Modulith devuelve las fronteras a aplicaciones Spring Boot."
-- Hilo conductor: **"lo vamos a ver sobre un sistema de reserva de entradas que está funcionando ahora mismo en esta máquina"**.
-- ⚠️ No entrar en detalle del proyecto todavía — solo dejar sembrado que habrá demo en vivo.
-
-➡️ *Transición*: "Vamos con la agenda."
+- Hoy quiero hablar sobre la propuesta que nos hace Spring sobre la arquitectura de los monolitos. Y como con Spring Modulith nos podemos beneficiar de las bondades de los monolitos tradicionales, pero sin sufrir las carencias que historicamente hemos tenido en este tipo de arquitectura.
 
 ### 🎞️ Diapositiva 2 — Índice (3 bloques)
 
@@ -49,18 +44,12 @@
 - **<1> ¿Por qué modularidad?** — los dolores que vivimos a diario.
 - **<2> Arquitectura del ejemplo** — los 4 módulos y cómo se comunican.
 - **<3> Demo en vivo** — todo el flujo de una reserva, en directo.
-- Recordar: "al final, preguntas".
-- ⚠️ OJO: el índice tiene **3 bloques** (no mencionar testing como sección — el testing se menciona dentro del bloque 2).
 
-➡️ *Transición*: "Empecemos por el dolor."
+Esto es lo que vamos a ver a grandes rasgos, primero el comentar los pros y contras que tiene el monolito y lo que aporta Spring Modulith.
+Luego voy a explicar un pequeño proyecto a modo de demo, realizado con Spring Modulith.
+Y por último, lo vamos a ver en vivo, señalando las partes claves que antes habremos visto
 
 ---
-
-## Bloque 2 · ¿Por qué modularidad? — *9 min*
-
-### 🎞️ Diapositiva 3 — Divider <1>
-
-Solo respirar: "¿Por qué modularidad? Lo que vivimos a diario."
 
 ### 🎞️ Diapositiva 4 — El problema del monolito clásico
 
@@ -68,14 +57,13 @@ Solo respirar: "¿Por qué modularidad? Lo que vivimos a diario."
 
 Los 4 dolores (uno por tarjeta), en este orden y con su frase-gancho:
 
-1. **ACOPLAMIENTO** — "Cambiar una clase rompe tres módulos: sin fronteras, cada cambio se propaga de forma impredecible."
-2. **TESTS LENTOS** — "Arrancar todo el contexto para cada test es un cuello de botella. Guarda esta idea: la modularidad también la arregla — cada test arranca **solo lo que toca**." *(siembra la demo de tests de módulo)*
-3. **MIEDO A REFACTORIZAR** — "Sin validación de dependencias, 'limpiar' código es una apuesta."
-4. **ONBOARDING DIFÍCIL** — "Un desarrollador nuevo necesita semanas para entender un grafo de dependencias oculto."
+1. **ACOPLAMIENTO** — Y sobretodo esto se acentúa cuando se trabaja en el mismo monolito varias personas y no digamos, varios equipos...
 
-⚠️ **No olvidar**: la frase de cierre de la slide — *"Spring Modulith trae de vuelta las fronteras **dentro** del monolito"* — es la tesis de todo el webinar.
+2. **TESTS LENTOS** — Cuando todo está tan acoplado, te suele obligar a arrancar todo el contexto de la aplicación para probar un módulo en concreto o los test se hacen más complejos al tener que mockear partes del monolito
 
-➡️ *Transición*: "¿Y qué opciones hay? Tres, en realidad."
+3. **MIEDO A REFACTORIZAR** — Esto es un clásico, hasta subir de versión de java es un dolor que muchas veces es definitivo para que el proyecto muera.
+
+4. **ONBOARDING DIFÍCIL** — Cuando alguien nuevo se incorpora al equipo, es muy complejo poder ver algo claro entre tantas dependencias cruzadas.
 
 ### 🎞️ Diapositiva 5 — Tres formas de estructurar un sistema
 
@@ -91,6 +79,8 @@ Los 4 dolores (uno por tarjeta), en este orden y con su frase-gancho:
 
 ### 🎞️ Diapositiva 6 — ¿Qué es Spring Modulith?
 
+Entrando ya un poco más en concreto qué es Spring Modulith.
+
 **Objetivo**: los 4 pilares (izquierda: definición; derecha: capacidades).
 
 Definición en 2 frases (columna izquierda):
@@ -101,10 +91,10 @@ Definición en 2 frases (columna izquierda):
 
 Los 4 pilares (derecha), con una frase cada uno:
 
-1. **LÍMITES VALIDADOS** — ArchUnit bajo el capó; la build falla si un módulo toca interioridades de otro. *"La arquitectura se ejecuta en cada `mvn test`."*
+1. **LÍMITES VALIDADOS** — ArchUnit es el equivalente a JUnit pero para la arquitectura.
 2. **EVENTOS ENTRE MÓDULOS** — `@ApplicationModuleListener`: asíncrono, transaccional, **persistido con reintentos** si un consumidor falla.
 3. **TESTING AISLADO** — `@ApplicationModuleTest` arranca **solo el módulo** bajo prueba.
-4. **DOCUMENTACIÓN VIVA** — `Documenter` genera PlantUML y C4 **desde el código real**: *"el diagrama nunca queda obsoleto porque se dibuja en cada build"*.
+4. **DOCUMENTACIÓN VIVA** — Produce de forma automática una documentación viva, `Documenter` (es una clase que luego veremos en el ejemplo) genera PlantUML y C4 **desde el código real**: *"el diagrama nunca queda obsoleto porque se dibuja en cada build"*. Son diagramas básicos, pero tienen el valor de que siempre están actualizados, están ligados al código real.
 
 ⚠️ **No olvidar**: anticipar la demo — "todo esto lo vamos a **ver**, no solo contar".
 
@@ -112,14 +102,13 @@ Los 4 pilares (derecha), con una frase cada uno:
 
 ### 🎞️ Diapositiva 7 — Spring Modulith, de cerca
 
-**Objetivo**: dar contexto y solidez al proyecto antes del ejemplo (¿de dónde sale, qué edad tiene, quién lo lleva?).
+- Es un proyecto joven, de hecho la release inicial es del 2.023
 
 Los 4 datos (derecha), con su frase:
 
 - **<1> AGOSTO 2023 · 1.0** — "Primera versión estable, sobre Spring Boot 3. El repositorio público llevaba vivo desde julio de 2022."
 - **<2> CADENCIA SEMESTRAL** — "Sale una versión cada seis meses, en sintonía con Spring Boot: con Boot 3.5 te corresponde Modulith 1.4; con Boot 4, Modulith 2." ⚠️ **Conectar**: "este proyecto usa Boot 3.5 + Modulith 1.4 — el par correcto, no una versión vieja."
 - **<3> OPEN SOURCE** — "Apache 2.0 en spring-projects/spring-modulith, liderado por Oliver Drotbohm (equipo de Spring). Más de 1.200 estrellas en GitHub."
-- **<4> SOBRE ARCHUNIT** — "Las reglas que fallan la build usan ArchUnit. También externalización a Kafka/RabbitMQ y observabilidad Micrometer."
 
 ⚠️ **No olvidar**: es un proyecto joven pero no un juguete — avalado y mantenido por el equipo de Spring.
 
@@ -144,13 +133,10 @@ Presentar cada tarjeta con su frase:
 - **SEATS** — "Gestiona el aforo. No llama a nadie: **escucha**. BookingConfirmed reserva plazas, BookingCancelled las libera."
 - **NOTIFICATION** — "Emails simulados en logs. **Solo consume eventos**: podríamos borrar este módulo entero y ningún otro cambiaría ni una línea. Ese es el nivel de desacoplamiento que buscamos." ⚠️ **Frase estrella — no olvidarla.**
 
-⚠️ **No olvidar**: señalar que **no hay config** — "la estructura de paquetes ES la arquitectura; Modulith la detecta sola".
-
-➡️ *Transición*: "Veamos el flujo completo de una reserva — aquí está todo el juego."
 
 ### 🎞️ Diapositiva 10 — ¿Dónde acaba un módulo?
 
-**Objetivo**: explicar la regla de fronteras, que en el resto del deck se da por sabida.
+señalar que **no hay config** — "la estructura de paquetes ES la arquitectura; Modulith la detecta sola".
 
 **Árbol real del proyecto** (la slide lo muestra simplificado; tenlo a mano por si preguntan o quieres enseñarlo ampliado):
 
@@ -172,14 +158,11 @@ com.example.tickets/
     └── internal/                   # NotificationService, BookingNotificationHandler
 ```
 
-- Señalar el árbol: "**Cada carpeta directa** bajo `com.example.tickets` es un módulo. No hay configuración: Modulith los detecta al arrancar los tests."
+- "**Cada carpeta directa** bajo `com.example.tickets` es un módulo. No hay configuración: Modulith los detecta al arrancar los tests."
 - "La frontera tiene dos lados: lo que está en la **raíz** de la carpeta del módulo es su **API pública**; lo que metes en **subcarpetas** es **interno** y ningún otro módulo puede tocarlo."
-- **En el código**: "cada módulo ya tiene su carpeta `internal/`: entidades, repositorios y handlers. La raíz solo expone servicios, DTOs y controladores — el árbol de la slide es la estructura real del proyecto."
+- **En el código**: "cada módulo ya tiene su carpeta `internal/`: entidades, repositorios y handlers. La raíz solo expone servicios, DTOs y controladores "
 - **Si quieres declararlo explícito**: `@ApplicationModule(allowedDependencies)` limita de qué módulos puedes depender; `@NamedInterface` expone un subpaquete con nombre. Por defecto el módulo es **cerrado** (`closed` en `/actuator/modulith`).
 
-⚠️ **No olvidar**: "un módulo solo ve la **raíz** del otro, nunca sus subpaquetes — y eso lo verifica ArchUnit en cada build".
-
-➡️ *Transición*: "Vamos al flujo completo de una reserva."
 
 ---
 
@@ -206,34 +189,94 @@ com.example.tickets/
 
 "Momento de la verdad." (cambia a terminal/Swagger)
 
-### 🎞️ Diapositiva 13 — Pasos de la demo *(segunda pantalla, para no perderse)*
+### Documentación automática
+Arrancada la app, la API se consulta desde Swagger UI: **`http://localhost:8080/swagger-ui.html`**.
 
-Los 4 pasos, con su narración:
+El desplegable superior agrupa los endpoints **por módulo** (configurado en `OpenApiGroupsConfig` con un `GroupedOpenApi` por paquete, con `pathsToMatch`): la documentación REST es un espejo de la estructura de carpetas.
 
-**<1> CREAR EVENTO** — `POST /api/events` (Swagger o curl):
+```bash
+./mvnw spring-boot:run 
+```
 
-- "Damos de alta un concierto con su aforo (50). Fijaos: **Events no sabe nada** de reservas ni de notificaciones — solo guarda su dominio."
-- ✅ Verificar respuesta: `id=1`.
+### Diagramas generados desde el código
 
-**<2> CREAR RESERVA** — `POST /api/bookings`:
+`ModularityTests.writesArchitectureDocumentation()` ejecuta:
 
-- "Booking valida el evento, calcula el total (2 × 25 = **50.00**) y publica `BookingConfirmedEvent` **dentro de su transacción**."
-- ⚠️ **No olvidar** mirar el reloj: "la respuesta HTTP volvió en milisegundos — **antes** de que pasara todo lo demás".
+```java
+new Documenter(modules)
+        .writeModulesAsPlantUml()           // diagrama global
+        .writeIndividualModulesAsPlantUml() // un diagrama por módulo
+        .writeAggregatingDocument();        // documento C4 agregado
+```
 
-**<3> OBSERVAR EL EFECTO** — aquí se luce el proyecto (ir enseñando cada cosa):
+Salida en `target/spring-modulith-docs/`: `components.puml`, `module-booking.puml`, `module-events.puml`, `module-seats.puml`, `module-notification.puml` y `all-docs.adoc` (modelado C4).
 
-- 🖥️ **Logs**: aparecen `🎟️ [Seats] BookingConfirmed… reservando 2 plazas` y `📬 [Notification]` — "**después** de que el cliente recibió su respuesta. Ese orden es la prueba del desacoplamiento."
-- 🗄️ **Consola H2**: `SELECT event_type, completion_date FROM event_publication;` → "cada evento quedó **registrado y completado** — entrega fiable, no fire-and-forget".
-- 📊 **`/actuator/metrics/modulith.events.processed`** → contador con tags `event_type` y `module_name`.
-- 🏗️ **`/actuator/modulith`** → "la arquitectura en runtime: véis los 4 módulos y el tipo de cada dependencia — `USES_COMPONENT` (booking→events) y `EVENT_LISTENER` (seats→booking)."
+Como se genera desde el código **en cada build de tests**, la documentación no puede mentir: si un módulo empieza a depender de otro, el diagrama cambia (y si la dependencia es ilegal, ni siquiera se genera — la build falla antes).
 
-**<4> CANCELAR Y VER REINTENTOS** — `POST /api/bookings/1/cancel`:
+### El recorrido completo (verificado):
 
-- "`BookingCancelledEvent` libera el aforo y avisa al cliente. **Saga**: cada evento tiene su contrapartida."
-- 💡 Opcional si va con tiempo (el golpe de efecto): **agotar el aforo a propósito** — reservar más de 50 y ver en H2 la publicación con `completion_date NULL` → "queda **pendiente de reintento**; si libero aforo y reinicio, se procesa. Con ApplicationEvent a secas, este evento se habría perdido."
-- 💡 Si vas justo de tiempo, este paso <4> puede quedar en "liberar aforo" sin entrar en reintentos — el reintento queda cubierto por el paso <3> (tabla H2).
+```bash
+# 1. Evento con aforo 50
+curl -X POST http://localhost:8080/api/events -H "Content-Type: application/json" \
+  -d '{"name":"Demo Evento","venue":"Sala X","eventDate":"2026-12-01T20:00:00Z","price":10.00,"totalCapacity":50}'
 
-⚠️ **No olvidar**: los JSON van **copiados** — escribir JSON en directo es tiempo muerto.
+# 2. Reserva A: las 50 entradas -> aforo lleno (reservedSeats: 50, available: 0)
+curl -X POST http://localhost:8080/api/bookings -H "Content-Type: application/json" \
+  -d '{"eventId":1,"customerEmail":"a@example.com","quantity":50}'
+
+# 3. Reserva B: 10 entradas -> devuelve CONFIRMED al cliente, pero el listener
+#    de Seats falla al procesarla (aforo agotado):
+#    InsufficientSeatsException: Aforo insuficiente para el evento 1:
+#    solicitadas 10, disponibles 0
+#    -> su publicación queda INCOMPLETA en event_publication (completion_date NULL).
+#    La de Notification SÍ se completa: el fallo de un consumidor no arrastra a los demás.
+curl -X POST http://localhost:8080/api/bookings -H "Content-Type: application/json" \
+  -d '{"eventId":1,"customerEmail":"b@example.com","quantity":10}'
+
+# 4. Liberar aforo: cancelar la reserva A (Seats libera las 50 plazas)
+curl -X POST "http://localhost:8080/api/bookings/1/cancel?reason=Liberar%20aforo"
+
+```
+
+### Provocar fallo en arquitectura, violar límites. Inyectar el interno en `BookingService`
+
+En `src/main/java/com/example/tickets/booking/BookingService.java`, añade el import y el campo (con Lombok `@RequiredArgsConstructor`, basta declararlo: entra en el constructor):
+
+```java
+import com.example.tickets.events.internal.EventRepository;
+
+@Service
+@RequiredArgsConstructor
+@Transactional
+public class BookingService {
+
+    private final BookingRepository bookingRepository;
+    private final EventService eventService;
+    
+    private final EventRepository eventRepository;
+    // ⚠️ VIOLACIÓN: interno de events
+
+    private final ApplicationEventPublisher eventPublisher;
+```
+
+```bash
+./mvnw test -Dtest=ModularityTests
+```
+
+`modules.verify()` **falla** con este mensaje (salida real):
+
+```text
+org.springframework.modulith.core.Violations:
+- Module 'booking' depends on non-exposed type
+  com.example.tickets.events.internal.EventRepository within module 'events'!
+  BookingService declares constructor
+  BookingService(BookingRepository, EventService, EventRepository, ApplicationEventPublisher)
+  in (BookingService.java:0)
+- Module 'booking' depends on non-exposed type
+  com.example.tickets.events.internal.EventRepository within module 'events'!
+  Field <com.example.tickets.booking.BookingService.eventRepository> has type
+  <com.example.tickets.events.internal.EventRepository> in (BookingService.java:0)
+```
 
 ### 🎞️ Diapositiva 14 — Logs en vivo *(recapitulación de la terminal)*
 
