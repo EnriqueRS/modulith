@@ -5,8 +5,8 @@ target/
 .idea/
 *.iml
 
-# Deck del webinar (binario, se gestiona fuera del repo)
-/docs/Webinar\ Spring\ Modulith\ -\ innusual.pptx
+# Documentación y deck del webinar (se mantienen fuera del repo)
+/docs/
 
 # Logs y temporales
 *.log
