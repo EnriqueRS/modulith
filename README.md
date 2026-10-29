@@ -2,7 +2,7 @@
 
 Sistema de **reserva de entradas para eventos** construido como **Spring Modulith** — un monolito con módulos verificados, comunicación por eventos fiable y documentación de arquitectura generada desde el código.
 
-> 📘 **Informe detallado**: [docs/SPRING_MODULITH.md](docs/SPRING_MODULITH.md) — qué aporta Spring Modulith y dónde está implementado, con referencias concretas a código.
+> 📘 La documentación larga (informe de Spring Modulith y guion del webinar) se mantiene **fuera del repositorio**, junto al proyecto, en `docs/`.
 
 ## Stack
 
@@ -18,11 +18,13 @@ Sistema de **reserva de entradas para eventos** construido como **Spring Modulit
 
 ```
 com.example.tickets
-├── events        Catálogo de eventos (conciertos): API pública EventService
-├── booking       Reservas: publica BookingConfirmedEvent / BookingCancelledEvent
-├── seats         Aforo: escucha eventos y reserva/libera plazas
-└── notification  Emails (simulados por log): escucha los mismos eventos
+├── events        Catálogo de eventos. API pública: EventService + EventInfo
+├── booking       Reservas. API: BookingService + BookingInfo; publica eventos
+├── seats         Aforo. API: SeatService + SeatAvailability; escucha eventos
+└── notification  Emails (log). Sin API pública: solo consume eventos
 ```
+
+Cada módulo expone únicamente lo que está en la **raíz** de su paquete (servicios, DTOs y controladores). Entidades, repositorios y handlers viven en `<módulo>/internal/` y son invisibles para los demás módulos: si otro los usa, `verify()` falla la build.
 
 - Dependencias síncronas: `booking → events`, `seats → events` (solo la API pública).
 - Dependencias asíncronas: `booking → {seats, notification}` por eventos, con registro persistente en la tabla `event_publication`, reintentos al arrancar y observación vía actuator.
@@ -89,4 +91,18 @@ curl http://localhost:8080/api/seats/1   # reservedSeats vuelve a 0
 
 ### Demo de arquitectura
 
-Rompe una regla y la build te lo impedirá: la guía completa, con los pasos exactos y la salida real de `verify()`, está en [docs/SPRING_MODULITH.md, sección 6](docs/SPRING_MODULITH.md#6-prueba-de-fuego-viola-una-frontera-y-mira-cómo-la-build-te-lo-impide). En resumen: inyecta `EventRepository` (interno de `events`) en `BookingService` (un solo fichero) y ejecuta `./mvnw test` — `ModularityTests` fallará con `non-exposed type ... within module`, señalando el constructor y la línea exacta.
+Rompe una regla y la build te lo impedirá. En `BookingService`, añade el import y el campo:
+
+```java
+import com.example.tickets.events.internal.EventRepository;
+// ...
+private final EventRepository eventRepository; // ⚠️ interno de events
+```
+
+y ejecuta:
+
+```bash
+./mvnw test -Dtest=ModularityTests
+```
+
+`verify()` falla con `Module 'booking' depends on non-exposed type com.example.tickets.events.internal.EventRepository within module 'events'!`, señalando el constructor y la línea exacta. Quita el campo y el import: la suite vuelve a 22/22.
